@@ -59,7 +59,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_key
 
 1. Clone the repository:
 
-git clone https://github.com/your-username/ceninfo.git  
+git clone [https://github.com/your-username/ceninfo.git  ](https://github.com/jerymy-k/CenInfo)
 cd ceninfo  
 
 2. Install dependencies:
