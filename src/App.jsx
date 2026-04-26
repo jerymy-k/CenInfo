@@ -1,122 +1,161 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+const API_KEY = "1aaf70c8";
+const BASE_URL = "https://www.omdbapi.com";
+
+export default function App() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [type, setType] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
+
+  async function handleTypeChange(newType) {
+    setType(newType);
+    if (!query.trim()) return;
+    setLoading(true);
+    setError("");
+    setSelected(null);
+    try {
+      const res = await fetch(`${BASE_URL}/?s=${query}&type=${newType}&page=1&apikey=${API_KEY}`);
+      const data = await res.json();
+      if (data.Response === "True") {
+        setResults(data.Search);
+        setTotalResults(parseInt(data.totalResults));
+        setPage(1);
+      } else {
+        setResults([]);
+        setError(data.Error);
+      }
+    } catch {
+      setError("Something went wrong.");
+    }
+    setLoading(false);
+  }
+  async function handleSearch(newPage = 1) {
+    if (!query.trim()) return;
+    setLoading(true);
+    setError("");
+    setSelected(null);
+    try {
+      const res = await fetch(`${BASE_URL}/?s=${query}&type=${type}&page=${newPage}&apikey=${API_KEY}`);
+      const data = await res.json();
+      if (data.Response === "True") {
+        setResults(data.Search);
+        setTotalResults(parseInt(data.totalResults));
+        setPage(newPage);
+      } else {
+        setResults([]);
+        setError(data.Error);
+      }
+    } catch {
+      setError("Something went wrong.");
+    }
+    setLoading(false);
+  }
+
+  async function handleSelect(imdbID) {
+    setLoading(true);
+    setSelected(null);
+    const res = await fetch(`${BASE_URL}/?i=${imdbID}&plot=full&apikey=${API_KEY}`);
+    const data = await res.json();
+    setSelected(data);
+    setLoading(false);
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <div style={{ maxWidth: 960, margin: "0 auto", padding: "2rem 1rem" }}>
+      <h1>🎬 CenInfo</h1>
+
+      <div className="search-bar">
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleSearch()}
+          placeholder="Search movies or series..."
+        />
+        <button onClick={handleSearch}>Search</button>
+      </div>
+      <div style={{ display: "flex", gap: 10, marginBottom: "1.5rem" }}>
+        {["", "movie", "series", "episode"].map(t => (
+          <button
+            key={t}
+            onClick={() => handleTypeChange(t)}
+            style={{
+              padding: "6px 16px",
+              borderRadius: 6,
+              border: "1px solid #e50914",
+              background: type === t ? "#e50914" : "transparent",
+              color: type === t ? "white" : "#e50914",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 500
+            }}
+          >
+            {t === "" ? "All" : t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+      {loading && <p className="status">Loading...</p>}
+      {error && <p className="error">{error}</p>}
+
+      {selected ? (
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+          <button className="back-btn" onClick={() => setSelected(null)}>← Back</button>
+          <div className="detail">
+            {selected.Poster !== "N/A" && <img src={selected.Poster} alt={selected.Title} />}
+            <div className="detail-info" style={{ flex: 1 }}>
+              <h2>{selected.Title} ({selected.Year})</h2>
+              <p><b>Genre:</b> {selected.Genre}</p>
+              <p><b>Director:</b> {selected.Director}</p>
+              <p><b>Actors:</b> {selected.Actors}</p>
+              <p><b>IMDb Rating:</b> ⭐ {selected.imdbRating}</p>
+              <p><b>Runtime:</b> {selected.Runtime}</p>
+              <p style={{ marginTop: 12 }}>{selected.Plot}</p>
+            </div>
+          </div>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      ) : (
+        <div className="grid">
+          {results.map(movie => (
+            <div key={movie.imdbID} className="card" onClick={() => handleSelect(movie.imdbID)}>
+              <img
+                src={movie.Poster !== "N/A" ? movie.Poster : "https://via.placeholder.com/160x240?text=No+Image"}
+                alt={movie.Title}
+              />
+              <div className="card-info">
+                <p>{movie.Title}</p>
+                <span>{movie.Year}</span>
+              </div>
+            </div>
+          ))}
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+      )}
+      {results.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, marginTop: "2rem" }}>
+          <button
+            className="back-btn"
+            onClick={() => handleSearch(page - 1)}
+            disabled={page === 1}
+            style={{ opacity: page === 1 ? 0.4 : 1 }}
+          >
+            ← Prev
+          </button>
+          <span style={{ color: "#888", fontSize: 14 }}>Page {page} of {Math.ceil(totalResults / 10)}</span>
+          <button
+            className="back-btn"
+            onClick={() => handleSearch(page + 1)}
+            disabled={page >= Math.ceil(totalResults / 10)}
+            style={{ opacity: page >= Math.ceil(totalResults / 10) ? 0.4 : 1 }}
+          >
+            Next →
+          </button>
         </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      )}
+    </div>
+  );
 }
-
-export default App
