@@ -49,31 +49,37 @@ export default function App() {
       }
     });
 
-    loadHomeMovies(1, 0);
+    loadHomeMovies(1);
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && !loadingHome && !query.trim()) {
-        loadHomeMovies(homePage + 1, homeKeyIndex);
+        loadHomeMovies(homePage + 1);
       }
     }, { threshold: 1.0 });
     if (bottomRef.current) observer.observe(bottomRef.current);
     return () => observer.disconnect();
-  }, [homePage, homeKeyIndex, loadingHome, query]);
+  }, [homePage, loadingHome, query]);
 
-  async function loadHomeMovies(pg = 1, keyIndex = 0) {
+  async function loadHomeMovies(pg = 1) {
     setLoadingHome(true);
-    const keyword = POPULAR[keyIndex % POPULAR.length];
-    const res = await fetch(`${BASE_URL}/?s=${keyword}&page=${pg}&apikey=${API_KEY}`);
+    const res = await fetch(
+      `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}&page=${pg}`
+    );
     const data = await res.json();
-    if (data.Response === "True") {
-      setHomeMovies(prev => [...prev, ...data.Search]);
+    if (data.results?.length) {
+      const mapped = data.results.map(m => ({
+        imdbID: m.imdb_id || `tmdb-${m.id}`,
+        Title: m.title,
+        Year: m.release_date?.split("-")[0],
+        Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
+        Type: "movie",
+        tmdbId: m.id,
+      }));
+      setHomeMovies(prev => pg === 1 ? mapped : [...prev, ...mapped]);
       setHomePage(pg);
-      setHomeKeyIndex(keyIndex);
-    } else {
-      await loadHomeMovies(1, keyIndex + 1);
     }
     setLoadingHome(false);
   }
@@ -122,10 +128,57 @@ export default function App() {
 
   async function handleTypeChange(newType) {
     setType(newType);
-    if (!query.trim()) return;
+    setSelected(null);
+
+    if (!query.trim()) {
+      setLoadingHome(true);
+      setHomeMovies([]);
+      setHomePage(1);
+      try {
+        if (newType === "") {
+          await loadHomeMovies(1);
+        } else if (newType === "documentary") {
+          const res = await fetch(
+            `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=99&page=1`
+          );
+          const data = await res.json();
+          if (data.results?.length) {
+            const mapped = data.results.map(m => ({
+              imdbID: m.imdb_id || `tmdb-${m.id}`,
+              Title: m.title,
+              Year: m.release_date?.split("-")[0],
+              Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
+              Type: "movie",
+              tmdbId: m.id,
+            }));
+            setHomeMovies(mapped);
+          }
+        } else {
+          const res = await fetch(
+            `https://api.themoviedb.org/3/trending/${newType}/week?api_key=${TMDB_KEY}&page=1`
+          );
+          const data = await res.json();
+          if (data.results?.length) {
+            const mapped = data.results.map(m => ({
+              imdbID: m.imdb_id || `tmdb-${m.id}`,
+              Title: m.title || m.name,
+              Year: (m.release_date || m.first_air_date)?.split("-")[0],
+              Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
+              Type: newType,
+              tmdbId: m.id,
+            }));
+            setHomeMovies(mapped);
+          }
+        }
+      } catch {
+        setError("Something went wrong.");
+      }
+      setLoadingHome(false);
+      return;
+    }
+
     setLoading(true);
     setError("");
-    setSelected(null);
     try {
       const res = await fetch(`${BASE_URL}/?s=${query}&type=${newType}&page=1&apikey=${API_KEY}`);
       const data = await res.json();
@@ -151,7 +204,7 @@ export default function App() {
     setShowFavorites(false);
     setSeason(1);
     setEpisode(1);
-    setSeriesInfo(null)
+    setSeriesInfo(null);
     const res = await fetch(`${BASE_URL}/?i=${imdbID}&plot=full&apikey=${API_KEY}`);
     const data = await res.json();
     setSelected(data);
@@ -334,63 +387,60 @@ export default function App() {
                     <p className="details-subtitle">{selected.Year} • {selected.Runtime} • {selected.Genre}</p>
 
                     <div className="details-actions">
-                      <button className="btn-primary">Watch Trailer</button>
+                      <button className="btn-primary" onClick={() => {
+                        const trailerEl = document.getElementById("trailer-section");
+                        if (trailerEl) trailerEl.scrollIntoView({ behavior: "smooth" });
+                      }}>
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                        Watch Trailer
+                      </button>
                       <button className={`btn-icon ${isFavorite(selected.imdbID) ? "active" : ""}`} onClick={() => toggleFavorite(selected)}>
                         <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
                       </button>
                     </div>
 
                     <div className="details-description">
-                      <h3>Synopsis</h3>
+                      <h3 className="section-title">Synopsis</h3>
                       <p>{selected.Plot}</p>
                     </div>
 
                     {providers && (
-                      <div style={{ marginTop: "1.5rem" }}>
-                        <h3 style={{ marginBottom: "0.75rem", color: "#fff" }}>Where to Watch</h3>
+                      <div style={{ marginTop: "2rem" }}>
+                        <h3 className="section-title">Where to Watch</h3>
+
                         {providers.flatrate && (
-                          <div style={{ marginBottom: 12 }}>
-                            <p style={{ color: "#888", fontSize: 13, marginBottom: 6 }}>Stream</p>
-                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <div style={{ marginBottom: 16 }}>
+                            <p style={{ color: "#888", fontSize: 13, marginBottom: 8, textTransform: "uppercase" }}>Stream</p>
+                            <div className="provider-group">
                               {providers.flatrate.map(p => (
                                 <a key={p.provider_id} href={providers.link} target="_blank" rel="noreferrer" title={p.provider_name}>
-                                  <img
-                                    src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
-                                    alt={p.provider_name}
-                                    style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover" }}
-                                  />
+                                  <img className="provider-icon" src={`https://image.tmdb.org/t/p/original${p.logo_path}`} alt={p.provider_name} />
                                 </a>
                               ))}
                             </div>
                           </div>
                         )}
+
                         {providers.rent && (
-                          <div style={{ marginBottom: 12 }}>
-                            <p style={{ color: "#888", fontSize: 13, marginBottom: 6 }}>Rent</p>
-                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <div style={{ marginBottom: 16 }}>
+                            <p style={{ color: "#888", fontSize: 13, marginBottom: 8, textTransform: "uppercase" }}>Rent</p>
+                            <div className="provider-group">
                               {providers.rent.map(p => (
                                 <a key={p.provider_id} href={providers.link} target="_blank" rel="noreferrer" title={p.provider_name}>
-                                  <img
-                                    src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
-                                    alt={p.provider_name}
-                                    style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover" }}
-                                  />
+                                  <img className="provider-icon" src={`https://image.tmdb.org/t/p/original${p.logo_path}`} alt={p.provider_name} />
                                 </a>
                               ))}
                             </div>
                           </div>
                         )}
+
                         {providers.buy && (
-                          <div style={{ marginBottom: 12 }}>
-                            <p style={{ color: "#888", fontSize: 13, marginBottom: 6 }}>Buy</p>
-                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <div style={{ marginBottom: 16 }}>
+                            <p style={{ color: "#888", fontSize: 13, marginBottom: 8, textTransform: "uppercase" }}>Buy</p>
+                            <div className="provider-group">
                               {providers.buy.map(p => (
                                 <a key={p.provider_id} href={providers.link} target="_blank" rel="noreferrer" title={p.provider_name}>
-                                  <img
-                                    src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
-                                    alt={p.provider_name}
-                                    style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover" }}
-                                  />
+                                  <img className="provider-icon" src={`https://image.tmdb.org/t/p/original${p.logo_path}`} alt={p.provider_name} />
                                 </a>
                               ))}
                             </div>
@@ -399,17 +449,17 @@ export default function App() {
                       </div>
                     )}
 
-                    <div style={{ marginTop: "1.5rem" }}>
-                      <h3 style={{ marginBottom: "0.75rem", color: "#fff" }}>Watch</h3>
+                    <div style={{ marginTop: "2.5rem" }}>
+                      <h3 className="section-title">Watch Now</h3>
 
                       {selected.Type === "series" && seriesInfo && (
-                        <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                        <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
                           <div>
                             <label style={{ color: "#888", fontSize: 13 }}>Season</label>
                             <select
                               value={season}
                               onChange={e => { setSeason(Number(e.target.value)); setEpisode(1); }}
-                              style={{ display: "block", padding: "6px 10px", borderRadius: 6, border: "1px solid #333", background: "#1a1a1a", color: "#fff", marginTop: 4 }}
+                              style={{ display: "block", padding: "8px 12px", borderRadius: 8, border: "1px solid #333", background: "rgba(18,18,18,0.8)", color: "#fff", marginTop: 4, outline: "none", cursor: "pointer" }}
                             >
                               {Object.keys(seriesInfo).map(s => (
                                 <option key={s} value={s}>Season {s}</option>
@@ -421,7 +471,7 @@ export default function App() {
                             <select
                               value={episode}
                               onChange={e => setEpisode(Number(e.target.value))}
-                              style={{ display: "block", padding: "6px 10px", borderRadius: 6, border: "1px solid #333", background: "#1a1a1a", color: "#fff", marginTop: 4 }}
+                              style={{ display: "block", padding: "8px 12px", borderRadius: 8, border: "1px solid #333", background: "rgba(18,18,18,0.8)", color: "#fff", marginTop: 4, outline: "none", cursor: "pointer" }}
                             >
                               {Array.from({ length: seriesInfo[season] }, (_, i) => i + 1).map(ep => (
                                 <option key={ep} value={ep}>Episode {ep}</option>
@@ -431,36 +481,29 @@ export default function App() {
                         </div>
                       )}
 
-                      <iframe
-                        src={
-                          selected.Type === "series"
-                            ? `https://www.2embed.cc/embedtv/${selected.imdbID}&s=${season}&e=${episode}`
-                            : `https://www.2embed.cc/embed/${selected.imdbID}`
-                        }
-                        width="100%"
-                        height="450"
-                        allowFullScreen
-                        style={{ borderRadius: 10, border: "none" }}
-                        title="Watch"
-                      />
+                      <div className="video-wrapper">
+                        <iframe
+                          src={
+                            selected.Type === "series"
+                              ? `https://www.2embed.cc/embedtv/${selected.imdbID}&s=${season}&e=${episode}`
+                              : `https://www.2embed.cc/embed/${selected.imdbID}`
+                          }
+                          allowFullScreen
+                          title="Watch"
+                        />
+                      </div>
                     </div>
 
                     {trailerUrl && (
-                      <div style={{ marginTop: "1.5rem" }}>
-                        <h3 style={{ marginBottom: "0.75rem", color: "#fff" }}>Trailer</h3>
-                        <iframe
-                          width="100%"
-                          height="315"
-                          src={trailerUrl}
-                          title="Trailer"
-                          frameBorder="0"
-                          allowFullScreen
-                          style={{ borderRadius: 10 }}
-                        />
+                      <div id="trailer-section" style={{ marginTop: "2.5rem" }}>
+                        <h3 className="section-title">Trailer</h3>
+                        <div className="video-wrapper">
+                          <iframe src={trailerUrl} title="Trailer" allowFullScreen />
+                        </div>
                       </div>
                     )}
 
-                    <div className="details-meta-grid">
+                    <div className="details-meta-grid" style={{ marginTop: "2rem" }}>
                       <div className="meta-item">
                         <span>Director</span>
                         <p>{selected.Director}</p>
@@ -480,7 +523,7 @@ export default function App() {
               <div className="discover-header">
                 <h2 className="page-title">Explore</h2>
                 <div className="category-filters">
-                  {["", "movie", "series", "episode"].map(t => (
+                  {["", "movie", "series", "documentary"].map(t => (
                     <button key={t} onClick={() => handleTypeChange(t)} className={`filter-btn ${type === t ? "active" : ""}`}>
                       {t === "" ? "All" : t.charAt(0).toUpperCase() + t.slice(1)}
                     </button>
@@ -505,8 +548,8 @@ export default function App() {
               {query.trim() && results.length > 0 && (
                 <div className="footer-pagination">
                   <button className="page-nav" onClick={() => handleSearch(page - 1)} disabled={page === 1}>Previous</button>
-                  <span className="page-info">Page {page} of {Math.ceil(totalResults / 14)}</span>
-                  <button className="page-nav" onClick={() => handleSearch(page + 1)} disabled={page >= Math.ceil(totalResults / 14)}>Next</button>
+                  <span className="page-info">Page {page} of {Math.ceil(totalResults / 10)}</span>
+                  <button className="page-nav" onClick={() => handleSearch(page + 1)} disabled={page >= Math.ceil(totalResults / 10)}>Next</button>
                 </div>
               )}
             </div>

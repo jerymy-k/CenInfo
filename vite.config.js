@@ -5,5 +5,9 @@ export default defineConfig({
   plugins: [react()],
   preview: {
     allowedHosts: ['ceninfo.up.railway.app']
+  },
+  server: {
+    host: '0.0.0.0',
+    port: 5173
   }
 })
