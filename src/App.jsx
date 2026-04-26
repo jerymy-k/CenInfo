@@ -26,9 +26,9 @@ export default function App() {
   const [loadingHome, setLoadingHome] = useState(false);
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
-  const bottomRef = useRef(null);
   const [trailerUrl, setTrailerUrl] = useState(null);
-
+  const [providers, setProviders] = useState(null);
+  const bottomRef = useRef(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -144,20 +144,58 @@ export default function App() {
     setLoading(true);
     setSelected(null);
     setTrailerUrl(null);
+    setProviders(null);
     setShowFavorites(false);
     const res = await fetch(`${BASE_URL}/?i=${imdbID}&plot=full&apikey=${API_KEY}`);
     const data = await res.json();
     setSelected(data);
-    const url = await fetchTrailer(data.Title, data.Year);
-    setTrailerUrl(url);
+    const searchRes = await fetch(
+      `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(data.Title)}&year=${data.Year}&api_key=${TMDB_KEY}`
+    );
+    const searchData = await searchRes.json();
+    if (searchData.results?.length) {
+      const tmdbId = searchData.results[0].id;
+      const url = await fetchTrailer(data.Title, data.Year);
+      setTrailerUrl(url);
+      await fetchProviders(tmdbId);
+    }
     setLoading(false);
   }
 
-  async function toggleFavorite(movie) {
-    if (!user) {
-      setShowAuth(true);
-      return;
+  async function fetchTrailer(title, year) {
+    try {
+      const searchRes = await fetch(
+        `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&year=${year}&api_key=${TMDB_KEY}`
+      );
+      const searchData = await searchRes.json();
+      if (!searchData.results?.length) return null;
+      const movieId = searchData.results[0].id;
+      const videoRes = await fetch(
+        `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_KEY}`
+      );
+      const videoData = await videoRes.json();
+      const trailer = videoData.results?.find(v => v.type === "Trailer" && v.site === "YouTube");
+      return trailer ? `https://www.youtube.com/embed/${trailer.key}` : null;
+    } catch {
+      return null;
     }
+  }
+
+  async function fetchProviders(tmdbId) {
+    try {
+      const res = await fetch(
+        `https://api.themoviedb.org/3/movie/${tmdbId}/watch/providers?api_key=${TMDB_KEY}`
+      );
+      const data = await res.json();
+      const countryData = data.results?.MA || data.results?.US || null;
+      setProviders(countryData);
+    } catch {
+      setProviders(null);
+    }
+  }
+
+  async function toggleFavorite(movie) {
+    if (!user) { setShowAuth(true); return; }
     if (isFavorite(movie.imdbID)) {
       await supabase.from("favorites").delete().eq("imdb_id", movie.imdbID).eq("user_id", user.id);
       setFavorites(prev => prev.filter(f => f.imdbID !== movie.imdbID));
@@ -184,26 +222,6 @@ export default function App() {
   function isFavorite(imdbID) {
     return favorites.some(f => f.imdbID === imdbID);
   }
-
-  async function fetchTrailer(title, year) {
-  try {
-    const searchRes = await fetch(
-      `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&year=${year}&api_key=${TMDB_KEY}`
-    );
-    const searchData = await searchRes.json();
-    if (!searchData.results?.length) return null;
-
-    const movieId = searchData.results[0].id;
-    const videoRes = await fetch(
-      `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_KEY}`
-    );
-    const videoData = await videoRes.json();
-    const trailer = videoData.results?.find(v => v.type === "Trailer" && v.site === "YouTube");
-    return trailer ? `https://www.youtube.com/embed/${trailer.key}` : null;
-  } catch {
-    return null;
-  }
-}
 
   return (
     <div className="app-container">
@@ -244,13 +262,9 @@ export default function App() {
             <button className="promo-btn">Upgrade</button>
           </div>
           {user ? (
-            <button className="auth-btn logout" onClick={() => supabase.auth.signOut()}>
-              Sign Out
-            </button>
+            <button className="auth-btn logout" onClick={() => supabase.auth.signOut()}>Sign Out</button>
           ) : (
-            <button className="auth-btn login" onClick={() => setShowAuth(true)}>
-              Sign In
-            </button>
+            <button className="auth-btn login" onClick={() => setShowAuth(true)}>Sign In</button>
           )}
         </div>
       </aside>
@@ -296,9 +310,7 @@ export default function App() {
                   <div className="details-info-panel">
                     <div className="details-header">
                       <h1>{selected.Title}</h1>
-                      <div className="rating-badge">
-                        <span>IMDb</span> {selected.imdbRating}
-                      </div>
+                      <div className="rating-badge"><span>IMDb</span> {selected.imdbRating}</div>
                     </div>
                     <p className="details-subtitle">{selected.Year} • {selected.Runtime} • {selected.Genre}</p>
 
@@ -313,9 +325,64 @@ export default function App() {
                       <h3>Synopsis</h3>
                       <p>{selected.Plot}</p>
                     </div>
+
+                    {providers && (
+                      <div style={{ marginTop: "1.5rem" }}>
+                        <h3 style={{ marginBottom: "0.75rem", color: "#fff" }}>Where to Watch</h3>
+                        {providers.flatrate && (
+                          <div style={{ marginBottom: 12 }}>
+                            <p style={{ color: "#888", fontSize: 13, marginBottom: 6 }}>Stream</p>
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                              {providers.flatrate.map(p => (
+                                <a key={p.provider_id} href={providers.link} target="_blank" rel="noreferrer" title={p.provider_name}>
+                                  <img
+                                    src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
+                                    alt={p.provider_name}
+                                    style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover" }}
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {providers.rent && (
+                          <div style={{ marginBottom: 12 }}>
+                            <p style={{ color: "#888", fontSize: 13, marginBottom: 6 }}>Rent</p>
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                              {providers.rent.map(p => (
+                                <a key={p.provider_id} href={providers.link} target="_blank" rel="noreferrer" title={p.provider_name}>
+                                  <img
+                                    src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
+                                    alt={p.provider_name}
+                                    style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover" }}
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {providers.buy && (
+                          <div style={{ marginBottom: 12 }}>
+                            <p style={{ color: "#888", fontSize: 13, marginBottom: 6 }}>Buy</p>
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                              {providers.buy.map(p => (
+                                <a key={p.provider_id} href={providers.link} target="_blank" rel="noreferrer" title={p.provider_name}>
+                                  <img
+                                    src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
+                                    alt={p.provider_name}
+                                    style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover" }}
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {trailerUrl && (
                       <div style={{ marginTop: "1.5rem" }}>
-                        <h3 style={{ marginBottom: "0.75rem" }}>Trailer</h3>
+                        <h3 style={{ marginBottom: "0.75rem", color: "#fff" }}>Trailer</h3>
                         <iframe
                           width="100%"
                           height="315"
@@ -327,6 +394,7 @@ export default function App() {
                         />
                       </div>
                     )}
+
                     <div className="details-meta-grid">
                       <div className="meta-item">
                         <span>Director</span>
@@ -372,8 +440,8 @@ export default function App() {
               {query.trim() && results.length > 0 && (
                 <div className="footer-pagination">
                   <button className="page-nav" onClick={() => handleSearch(page - 1)} disabled={page === 1}>Previous</button>
-                  <span className="page-info">Page {page} of {Math.ceil(totalResults / 10)}</span>
-                  <button className="page-nav" onClick={() => handleSearch(page + 1)} disabled={page >= Math.ceil(totalResults / 10)}>Next</button>
+                  <span className="page-info">Page {page} of {Math.ceil(totalResults / 14)}</span>
+                  <button className="page-nav" onClick={() => handleSearch(page + 1)} disabled={page >= Math.ceil(totalResults / 14)}>Next</button>
                 </div>
               )}
             </div>
