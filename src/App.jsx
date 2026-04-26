@@ -3,9 +3,9 @@ import "./App.css";
 import { useState, useEffect, useRef } from "react";
 import Auth from "./Auth";
 
-const API_KEY = "1aaf70c8";
+const API_KEY = import.meta.env.VITE_OMDB_API_KEY;
 const BASE_URL = "https://www.omdbapi.com";
-const POPULAR = ["mafia", "heat", "suit", "mafia", "al patcino", "matrix", "avatar", "titanic", "italian", "john wick", "the godfather", "harry potter"];
+const POPULAR = ["mafia", "heat", "suit", "al pacino", "matrix", "avatar", "titanic", "italian", "john wick", "the godfather", "harry potter", "inception"];
 
 export default function App() {
   const [query, setQuery] = useState("");
@@ -22,8 +22,9 @@ export default function App() {
   const [homePage, setHomePage] = useState(1);
   const [homeKeyIndex, setHomeKeyIndex] = useState(0);
   const [loadingHome, setLoadingHome] = useState(false);
-  const bottomRef = useRef(null);
   const [user, setUser] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const bottomRef = useRef(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -33,11 +34,15 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) loadFavorites(session.user.id);
+      if (session?.user) {
+        loadFavorites(session.user.id);
+        setShowAuth(false);
+      } else {
+        setFavorites([]);
+      }
     });
 
     loadHomeMovies(1, 0);
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -142,8 +147,12 @@ export default function App() {
   }
 
   async function toggleFavorite(movie) {
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
     if (isFavorite(movie.imdbID)) {
-      await supabase.from("favorites").delete().eq("imdb_id", movie.imdbID);
+      await supabase.from("favorites").delete().eq("imdb_id", movie.imdbID).eq("user_id", user.id);
       setFavorites(prev => prev.filter(f => f.imdbID !== movie.imdbID));
     } else {
       const row = {
@@ -169,7 +178,6 @@ export default function App() {
     return favorites.some(f => f.imdbID === imdbID);
   }
 
-  if (!user) return <Auth />;
   return (
     <div className="app-container">
       <aside className="sidebar">
@@ -181,42 +189,55 @@ export default function App() {
             className={`nav-link ${!showFavorites && !selected ? "active" : ""}`}
             onClick={() => { setShowFavorites(false); setSelected(null); }}
           >
-            <span className="nav-icon">🏠</span> Home
+            <span className="nav-icon">
+              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            </span> 
+            Discover
           </button>
           <button
             className={`nav-link ${showFavorites ? "active" : ""}`}
-            onClick={() => { setShowFavorites(true); setSelected(null); }}
+            onClick={() => {
+              if (!user) { setShowAuth(true); return; }
+              setShowFavorites(true);
+              setSelected(null);
+            }}
           >
-            <span className="nav-icon">♥</span> Favorites
+            <span className="nav-icon">
+              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </span> 
+            My Library
             {favorites.length > 0 && <span className="nav-badge">{favorites.length}</span>}
           </button>
         </nav>
-        <div className="sidebar-promo">
+        
+        <div className="sidebar-footer">
           <div className="promo-box">
-            <h4>Go Premium</h4>
-            <p>Enjoy CenInfo without any interruptions.</p>
+            <h4>CenInfo Plus</h4>
+            <p>Unlock 4K trailers & ad-free browsing.</p>
             <button className="promo-btn">Upgrade</button>
           </div>
+          {user ? (
+            <button className="auth-btn logout" onClick={() => supabase.auth.signOut()}>
+              Sign Out
+            </button>
+          ) : (
+            <button className="auth-btn login" onClick={() => setShowAuth(true)}>
+              Sign In
+            </button>
+          )}
         </div>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          style={{ background: "none", border: "1px solid #e50914", color: "#e50914", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 13, margin: "1rem" }}
-        >
-          Logout
-        </button>
       </aside>
 
       <main className="main-viewport">
         <header className="top-navigation">
           <div className="search-pill">
-            <span className="icon-search">🔍</span>
+            <svg className="icon-search" width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSearch()}
-              placeholder="Search movies, series..."
+              placeholder="Search movies, shows, directors..."
             />
-            <button className="search-action" onClick={() => handleSearch()}>Search</button>
           </div>
         </header>
 
@@ -225,8 +246,8 @@ export default function App() {
             <div className="view-wrapper fade-in">
               <h2 className="page-title">My Collection</h2>
               <div className="movie-grid">
-                {favorites.length === 0 && <p className="empty-msg">No favorites added yet.</p>}
-                {favorites.map(movie => (
+                {favorites.length === 0 && <div className="empty-state">Your library is waiting.</div>}
+                {favorites.map((movie) => (
                   <MovieCard key={movie.imdbID} movie={movie} onSelect={handleSelect} onToggleFav={toggleFavorite} isFav={true} />
                 ))}
               </div>
@@ -234,77 +255,100 @@ export default function App() {
 
           ) : selected ? (
             <div className="view-wrapper fade-in">
-              <button className="back-link-btn" onClick={() => setSelected(null)}>← Return to Browse</button>
+              <button className="back-link-btn" onClick={() => setSelected(null)}>
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                Back to explore
+              </button>
+              
               <div className="movie-details-hero">
-                <div className="details-poster">
-                  <img src={selected.Poster !== "N/A" ? selected.Poster : "https://via.placeholder.com/400x600"} alt={selected.Title} />
-                </div>
-                <div className="details-info-panel">
-                  <div className="details-header">
-                    <h1>{selected.Title}</h1>
-                    <span className="imdb-pill">⭐ {selected.imdbRating}</span>
+                <div className="details-backdrop" style={{ backgroundImage: `url(${selected.Poster !== "N/A" ? selected.Poster : ""})` }}></div>
+                <div className="details-content">
+                  <div className="details-poster">
+                    <img src={selected.Poster !== "N/A" ? selected.Poster : "https://via.placeholder.com/400x600"} alt={selected.Title} />
                   </div>
-                  <p className="details-subtitle">{selected.Year} • {selected.Runtime} • {selected.Genre}</p>
-                  <div className="details-description">
-                    <h3>Overview</h3>
-                    <p>{selected.Plot}</p>
+                  <div className="details-info-panel">
+                    <div className="details-header">
+                      <h1>{selected.Title}</h1>
+                      <div className="rating-badge">
+                        <span>IMDb</span> {selected.imdbRating}
+                      </div>
+                    </div>
+                    <p className="details-subtitle">{selected.Year} • {selected.Runtime} • {selected.Genre}</p>
+                    
+                    <div className="details-actions">
+                      <button className="btn-primary">Watch Trailer</button>
+                      <button className={`btn-icon ${isFavorite(selected.imdbID) ? "active" : ""}`} onClick={() => toggleFavorite(selected)}>
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                      </button>
+                    </div>
+
+                    <div className="details-description">
+                      <h3>Synopsis</h3>
+                      <p>{selected.Plot}</p>
+                    </div>
+                    
+                    <div className="details-meta-grid">
+                      <div className="meta-item">
+                        <span>Director</span>
+                        <p>{selected.Director}</p>
+                      </div>
+                      <div className="meta-item">
+                        <span>Starring</span>
+                        <p>{selected.Actors}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="details-meta-grid">
-                    <div><strong>Director</strong><p>{selected.Director}</p></div>
-                    <div><strong>Actors</strong><p>{selected.Actors}</p></div>
-                  </div>
-                  <button
-                    className={`btn-favorite ${isFavorite(selected.imdbID) ? "active" : ""}`}
-                    onClick={() => toggleFavorite(selected)}
-                  >
-                    {isFavorite(selected.imdbID) ? "Remove from Favorites" : "Add to Favorites"}
-                  </button>
                 </div>
               </div>
             </div>
 
           ) : (
             <div className="view-wrapper fade-in">
-              <div className="category-filters">
-                {["", "movie", "series", "episode"].map(t => (
-                  <button key={t} onClick={() => handleTypeChange(t)} className={`filter-btn ${type === t ? "active" : ""}`}>
-                    {t === "" ? "All Content" : t.charAt(0).toUpperCase() + t.slice(1)}
-                  </button>
-                ))}
+              <div className="discover-header">
+                <h2 className="page-title">Explore</h2>
+                <div className="category-filters">
+                  {["", "movie", "series", "episode"].map(t => (
+                    <button key={t} onClick={() => handleTypeChange(t)} className={`filter-btn ${type === t ? "active" : ""}`}>
+                      {t === "" ? "All" : t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {loading && <div className="loader-ring"><div></div><div></div></div>}
               {error && <div className="error-card">{error}</div>}
 
               <div className="movie-grid">
                 {(query.trim() ? results : homeMovies).map((movie, i) => (
-                  <MovieCard
-                    key={movie.imdbID + i}
-                    movie={movie}
-                    onSelect={handleSelect}
-                    onToggleFav={toggleFavorite}
-                    isFav={isFavorite(movie.imdbID)}
-                  />
+                  <MovieCard key={movie.imdbID + i} movie={movie} onSelect={handleSelect} onToggleFav={toggleFavorite} isFav={isFavorite(movie.imdbID)} />
                 ))}
               </div>
 
               {!query.trim() && (
-                <div ref={bottomRef} style={{ height: 40, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                  {loadingHome && <p className="status">Loading more...</p>}
+                <div ref={bottomRef} className="loader-container">
+                  {loadingHome && <div className="spinner"></div>}
                 </div>
               )}
 
               {query.trim() && results.length > 0 && (
                 <div className="footer-pagination">
-                  <button className="page-nav" onClick={() => handleSearch(page - 1)} disabled={page === 1}>Prev</button>
-                  <span className="page-info">Page {page} / {Math.ceil(totalResults / 12)}</span>
-                  <button className="page-nav" onClick={() => handleSearch(page + 1)} disabled={page >= Math.ceil(totalResults / 12)}>Next</button>
+                  <button className="page-nav" onClick={() => handleSearch(page - 1)} disabled={page === 1}>Previous</button>
+                  <span className="page-info">Page {page} of {Math.ceil(totalResults / 10)}</span>
+                  <button className="page-nav" onClick={() => handleSearch(page + 1)} disabled={page >= Math.ceil(totalResults / 10)}>Next</button>
                 </div>
               )}
             </div>
           )}
         </div>
       </main>
+
+      {showAuth && !user && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <button className="modal-close" onClick={() => setShowAuth(false)}>✕</button>
+            <Auth />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -312,19 +356,20 @@ export default function App() {
 function MovieCard({ movie, onSelect, onToggleFav, isFav }) {
   return (
     <div className="movie-card-item">
-      <div className="poster-box">
-        <img
-          src={movie.Poster !== "N/A" ? movie.Poster : "https://via.placeholder.com/300x450"}
-          alt={movie.Title}
-          onClick={() => onSelect(movie.imdbID)}
-        />
-        <button className={`heart-btn ${isFav ? "active" : ""}`} onClick={() => onToggleFav(movie)}>
-          {isFav ? "♥" : "♡"}
-        </button>
+      <div className="poster-box" onClick={() => onSelect(movie.imdbID)}>
+        <img src={movie.Poster !== "N/A" ? movie.Poster : "https://via.placeholder.com/300x450?text=No+Poster"} alt={movie.Title} loading="lazy" />
+        <div className="poster-overlay">
+          <button className={`heart-btn ${isFav ? "active" : ""}`} onClick={(e) => { e.stopPropagation(); onToggleFav(movie); }}>
+             <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </button>
+        </div>
       </div>
       <div className="card-details" onClick={() => onSelect(movie.imdbID)}>
-        <h5>{movie.Title}</h5>
-        <span>{movie.Year}</span>
+        <h5 title={movie.Title}>{movie.Title}</h5>
+        <div className="card-meta">
+          <span>{movie.Year}</span>
+          <span className="type-badge">{movie.Type}</span>
+        </div>
       </div>
     </div>
   );

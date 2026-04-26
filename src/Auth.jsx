@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "./supabase";
+import "./Auth.css";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -24,56 +25,78 @@ export default function Auth() {
     setLoading(false);
   }
 
+  async function handleGoogle() {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin }
+    });
+  }
+
   return (
-    <div style={{
-      minHeight: "100vh", display: "flex", alignItems: "center",
-      justifyContent: "center", background: "#0f0f0f"
-    }}>
-      <div style={{
-        background: "#1a1a1a", border: "1px solid #2a2a2a",
-        borderRadius: 12, padding: "2rem", width: "100%", maxWidth: 400
-      }}>
-        <h1 style={{ color: "#e50914", marginBottom: "0.5rem" }}>🎬 CenInfo</h1>
-        <h2 style={{ color: "#fff", marginBottom: "1.5rem", fontWeight: 500, fontSize: 18 }}>
-          {isLogin ? "Welcome back" : "Create account"}
-        </h2>
+    <div className="auth-page">
+      <div className="auth-card fade-in">
+        <header className="auth-header">
+          <h1 className="logo">Cen<span>Info</span></h1>
+          <h2>{isLogin ? "Welcome back" : "Create account"}</h2>
+          <p className="auth-subtitle">
+            {isLogin ? "Enter your credentials to access your dashboard" : "Join our community of movie enthusiasts"}
+          </p>
+        </header>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          style={{ width: "100%", marginBottom: 12, padding: "10px 14px", borderRadius: 6, border: "1px solid #333", background: "#0f0f0f", color: "#fff", fontSize: 15 }}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && handleSubmit()}
-          style={{ width: "100%", marginBottom: 16, padding: "10px 14px", borderRadius: 6, border: "1px solid #333", background: "#0f0f0f", color: "#fff", fontSize: 15 }}
-        />
+        <div className="auth-form">
+          <div className="input-group">
+            <input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="auth-input"
+            />
+          </div>
 
-        {error && <p style={{ color: "#e50914", marginBottom: 12, fontSize: 14 }}>{error}</p>}
-        {message && <p style={{ color: "#4caf50", marginBottom: 12, fontSize: 14 }}>{message}</p>}
+          <div className="input-group">
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSubmit()}
+              className="auth-input"
+            />
+          </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          style={{ width: "100%", padding: "10px", background: "#e50914", color: "#fff", border: "none", borderRadius: 6, fontSize: 16, fontWeight: 600, cursor: "pointer" }}
-        >
-          {loading ? "Loading..." : isLogin ? "Login" : "Sign Up"}
+          {error && <div className="alert alert-error">{error}</div>}
+          {message && <div className="alert alert-success">{message}</div>}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="btn-primary auth-submit"
+          >
+            {loading ? <span className="spinner"></span> : (isLogin ? "Sign In" : "Get Started")}
+          </button>
+        </div>
+
+        <div className="auth-divider">
+          <span>or</span>
+        </div>
+
+        <button onClick={handleGoogle} className="btn-secondary google-btn">
+          <img src="https://www.google.com/favicon.ico" alt="Google" width={18} height={18} />
+          Continue with Google
         </button>
 
-        <p style={{ color: "#888", marginTop: 16, textAlign: "center", fontSize: 14 }}>
-          {isLogin ? "Don't have an account?" : "Already have an account?"}
-          <button
-            onClick={() => { setIsLogin(f => !f); setError(""); setMessage(""); }}
-            style={{ background: "none", border: "none", color: "#e50914", cursor: "pointer", fontSize: 14, marginLeft: 6 }}
-          >
-            {isLogin ? "Sign Up" : "Login"}
-          </button>
-        </p>
+        <footer className="auth-footer">
+          <p>
+            {isLogin ? "New to CenInfo?" : "Already have an account?"}
+            <button
+              onClick={() => { setIsLogin(f => !f); setError(""); setMessage(""); }}
+              className="toggle-auth-btn"
+            >
+              {isLogin ? "Create an account" : "Sign In"}
+            </button>
+          </p>
+        </footer>
       </div>
     </div>
   );
