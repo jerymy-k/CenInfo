@@ -29,6 +29,9 @@ export default function App() {
   const [trailerUrl, setTrailerUrl] = useState(null);
   const [providers, setProviders] = useState(null);
   const bottomRef = useRef(null);
+  const [season, setSeason] = useState(1);
+  const [episode, setEpisode] = useState(1);
+  const [seriesInfo, setSeriesInfo] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -146,9 +149,15 @@ export default function App() {
     setTrailerUrl(null);
     setProviders(null);
     setShowFavorites(false);
+    setSeason(1);
+    setEpisode(1);
+    setSeriesInfo(null)
     const res = await fetch(`${BASE_URL}/?i=${imdbID}&plot=full&apikey=${API_KEY}`);
     const data = await res.json();
     setSelected(data);
+    if (data.Type === "series" && data.totalSeasons) {
+      await fetchSeriesInfo(data.imdbID, data.totalSeasons);
+    }
     const searchRes = await fetch(
       `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(data.Title)}&year=${data.Year}&api_key=${TMDB_KEY}`
     );
@@ -221,6 +230,16 @@ export default function App() {
 
   function isFavorite(imdbID) {
     return favorites.some(f => f.imdbID === imdbID);
+  }
+
+  async function fetchSeriesInfo(imdbID, totalSeasons) {
+    const seasons = {};
+    for (let s = 1; s <= parseInt(totalSeasons); s++) {
+      const res = await fetch(`${BASE_URL}/?i=${imdbID}&Season=${s}&apikey=${API_KEY}`);
+      const data = await res.json();
+      if (data.Episodes) seasons[s] = data.Episodes.length;
+    }
+    setSeriesInfo(seasons);
   }
 
   return (
@@ -379,6 +398,52 @@ export default function App() {
                         )}
                       </div>
                     )}
+
+                    <div style={{ marginTop: "1.5rem" }}>
+                      <h3 style={{ marginBottom: "0.75rem", color: "#fff" }}>Watch</h3>
+
+                      {selected.Type === "series" && seriesInfo && (
+                        <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                          <div>
+                            <label style={{ color: "#888", fontSize: 13 }}>Season</label>
+                            <select
+                              value={season}
+                              onChange={e => { setSeason(Number(e.target.value)); setEpisode(1); }}
+                              style={{ display: "block", padding: "6px 10px", borderRadius: 6, border: "1px solid #333", background: "#1a1a1a", color: "#fff", marginTop: 4 }}
+                            >
+                              {Object.keys(seriesInfo).map(s => (
+                                <option key={s} value={s}>Season {s}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ color: "#888", fontSize: 13 }}>Episode</label>
+                            <select
+                              value={episode}
+                              onChange={e => setEpisode(Number(e.target.value))}
+                              style={{ display: "block", padding: "6px 10px", borderRadius: 6, border: "1px solid #333", background: "#1a1a1a", color: "#fff", marginTop: 4 }}
+                            >
+                              {Array.from({ length: seriesInfo[season] }, (_, i) => i + 1).map(ep => (
+                                <option key={ep} value={ep}>Episode {ep}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      <iframe
+                        src={
+                          selected.Type === "series"
+                            ? `https://www.2embed.cc/embedtv/${selected.imdbID}&s=${season}&e=${episode}`
+                            : `https://www.2embed.cc/embed/${selected.imdbID}`
+                        }
+                        width="100%"
+                        height="450"
+                        allowFullScreen
+                        style={{ borderRadius: 10, border: "none" }}
+                        title="Watch"
+                      />
+                    </div>
 
                     {trailerUrl && (
                       <div style={{ marginTop: "1.5rem" }}>
