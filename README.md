@@ -1,61 +1,91 @@
-🎬 CenInfo
-A sleek, modern movie exploration platform built with React, Supabase, and the OMDb API. CenInfo allows users to discover trending movies, search for specific titles, view trailers, and manage a personal library of favorites.
+# 🎬 CenInfo — Cinematic Intelligence
 
-Live Demo: ceninfo.up.railway.app
+CenInfo is a high-performance, minimalist movie discovery platform. It leverages a modern full-stack serverless architecture to provide real-time movie data, instant trailers, and cloud-synced user libraries.
 
-✨ Features
-Infinite Discovery: Home feed features a curated list of popular titles with infinite scroll.
+[![Live Demo](https://img.shields.io/badge/demo-online-brightgreen?style=flat-square)](https://ceninfo.up.railway.app/)
+[![React](https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react)](https://reactjs.org/)
+[![Supabase](https://img.shields.io/badge/Database-Supabase-black?style=flat-square&logo=supabase)](https://supabase.com/)
+[![Railway](https://img.shields.io/badge/Platform-Railway-indigo?style=flat-square&logo=railway)](https://railway.app/)
 
-Deep Search: Search by title, director, or actor with specific filters for movies, series, and episodes.
+---
 
-User Authentication: Secure sign-in/sign-up powered by Supabase Auth.
+## 🌟 Key Features
 
-Personal Library: Logged-in users can save movies to their "My Library" collection, synced across devices.
+* **⚡ Real-Time Search:** Instant filtering across the OMDb database for movies, series, and episodes.
+* **🍿 Infinite Scroll:** Discover popular titles effortlessly with an automated pagination system.
+* **🔐 Secure Auth:** Full user management (Login/Signup/Session) via Supabase Auth.
+* **📚 Personal Library:** Save your favorite titles to a private collection stored in PostgreSQL.
+* **🎥 HD Trailers:** Automated trailer fetching using the TMDB API and YouTube integration.
+* **📱 Responsive Design:** Professional dark-mode UI optimized for both desktop and mobile viewports.
 
-Rich Details: Full plot synopses, IMDb ratings, cast information, and runtime.
+---
 
-Trailers: Integrated YouTube trailers via the TMDB API.
+## 🏗️ Project Architecture
 
-Responsive UI: Minimalist, cinematic design with a sidebar navigation and professional dark-mode aesthetic.
+```mermaid
+graph LR
+    A[React Frontend] --> B(OMDb API)
+    A --> C(TMDB API)
+    A --> D(Supabase Auth)
+    A --> E(Supabase PostgreSQL)
+    B --> A
+    C --> A
+🚀 Getting Started
+1. Prerequisites
+Node.js (v18+)
 
-🚀 Tech Stack
-Frontend: React 19 (Vite)
+NPM or Yarn
 
-Backend/Database: Supabase (Auth & PostgreSQL)
+API Keys for OMDb and TMDB
 
-Styling: CSS3 (Custom Elite/Academic White themes)
-
-APIs: OMDb API (Movie data) & TMDB API (Trailers)
-
-Deployment: Railway
-
-🛠️ Installation & Setup
-Clone the repository:
-
+2. Installation
 Bash
-git clone https://github.com/your-username/ceninfo.git
-cd ceninfo
-Install dependencies:
+# Clone the repository
+git clone [https://github.com/your-username/ceninfo.git](https://github.com/your-username/ceninfo.git)
 
-Bash
+# Install dependencies
 npm install
-Environment Variables:
-Create a .env file in the root and add your API keys:
+3. Environment Variables
+Create a .env file in the root directory and populate it with your credentials:
 
 Extrait de code
 VITE_OMDB_API_KEY=your_omdb_key
 VITE_TMDB_API_KEY=your_tmdb_key
-VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-Run the development server:
-
+4. Local Development
 Bash
 npm run dev
-📸 Project Structure
-App.jsx: Main logic, routing, and state management.
+🚢 Deployment (Railway Guide)
+This project is optimized for deployment on Railway using Nixpacks.
 
-Auth.jsx: Supabase authentication component.
+Port Configuration: Ensure your Railway service is listening on port 5173.
 
-supabase.js: Supabase client configuration.
+Start Command: Use npm run start.
 
-App.css: Custom minimalist styling.
+Vite Config: To prevent "Blocked Host" errors, ensure your vite.config.js is updated:
+
+JavaScript
+// vite.config.js
+export default defineConfig({
+  preview: {
+    allowedHosts: ['ceninfo.up.railway.app']
+  }
+})
+📁 File Structure
+Plaintext
+ceninfo/
+├── src/
+│   ├── assets/          # Project images and logos
+│   ├── Auth.jsx         # Supabase Auth components
+│   ├── App.jsx          # Main application logic & state
+│   ├── supabase.js      # Client configuration
+│   └── App.css          # Elite/Minimalist styling
+├── public/              # Static assets
+├── .env                 # Local secrets (ignored by git)
+├── package.json         # Dependency management
+└── vite.config.js       # Build & Host configuration
+👨‍💻 Author
+Mohamed Elkerymy Web Developer & UI/UX Enthusiast
+
+© 2026 CenInfo Project. Built for performance and design.
