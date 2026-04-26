@@ -53,6 +53,10 @@ html, body, #root {
   z-index: 100;
 }
 
+.logo{
+  width: 200px;
+}
+
 .sidebar-brand .logo {
   font-size: 1.75rem;
   font-weight: 800;

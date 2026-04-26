@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import "./App.css";
 import { useState, useEffect, useRef } from "react";
 import Auth from "./Auth";
+import logo from "./assets/CenInfoLogo.png";
 
 const API_KEY = import.meta.env.VITE_OMDB_API_KEY;
 const BASE_URL = "https://www.omdbapi.com";
@@ -208,7 +209,7 @@ export default function App() {
     <div className="app-container">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <h1 className="logo">Cen<span>Info</span></h1>
+          <img className="logo" src={logo} alt="app-logo" />
         </div>
         <nav className="nav-menu">
           <button
