@@ -6,6 +6,7 @@ import Auth from "./Auth";
 const API_KEY = import.meta.env.VITE_OMDB_API_KEY;
 const BASE_URL = "https://www.omdbapi.com";
 const POPULAR = ["mafia", "heat", "suit", "al pacino", "matrix", "avatar", "titanic", "italian", "john wick", "the godfather", "harry potter", "inception"];
+const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
 export default function App() {
   const [query, setQuery] = useState("");
@@ -25,6 +26,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const bottomRef = useRef(null);
+  const [trailerUrl, setTrailerUrl] = useState(null);
+
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -139,10 +142,13 @@ export default function App() {
   async function handleSelect(imdbID) {
     setLoading(true);
     setSelected(null);
+    setTrailerUrl(null);
     setShowFavorites(false);
     const res = await fetch(`${BASE_URL}/?i=${imdbID}&plot=full&apikey=${API_KEY}`);
     const data = await res.json();
     setSelected(data);
+    const url = await fetchTrailer(data.Title, data.Year);
+    setTrailerUrl(url);
     setLoading(false);
   }
 
@@ -178,6 +184,26 @@ export default function App() {
     return favorites.some(f => f.imdbID === imdbID);
   }
 
+  async function fetchTrailer(title, year) {
+  try {
+    const searchRes = await fetch(
+      `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&year=${year}&api_key=${TMDB_KEY}`
+    );
+    const searchData = await searchRes.json();
+    if (!searchData.results?.length) return null;
+
+    const movieId = searchData.results[0].id;
+    const videoRes = await fetch(
+      `https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_KEY}`
+    );
+    const videoData = await videoRes.json();
+    const trailer = videoData.results?.find(v => v.type === "Trailer" && v.site === "YouTube");
+    return trailer ? `https://www.youtube.com/embed/${trailer.key}` : null;
+  } catch {
+    return null;
+  }
+}
+
   return (
     <div className="app-container">
       <aside className="sidebar">
@@ -190,8 +216,8 @@ export default function App() {
             onClick={() => { setShowFavorites(false); setSelected(null); }}
           >
             <span className="nav-icon">
-              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-            </span> 
+              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg>
+            </span>
             Discover
           </button>
           <button
@@ -203,13 +229,13 @@ export default function App() {
             }}
           >
             <span className="nav-icon">
-              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-            </span> 
+              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
+            </span>
             My Library
             {favorites.length > 0 && <span className="nav-badge">{favorites.length}</span>}
           </button>
         </nav>
-        
+
         <div className="sidebar-footer">
           <div className="promo-box">
             <h4>CenInfo Plus</h4>
@@ -231,7 +257,7 @@ export default function App() {
       <main className="main-viewport">
         <header className="top-navigation">
           <div className="search-pill">
-            <svg className="icon-search" width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <svg className="icon-search" width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /></svg>
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -256,10 +282,10 @@ export default function App() {
           ) : selected ? (
             <div className="view-wrapper fade-in">
               <button className="back-link-btn" onClick={() => setSelected(null)}>
-                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
                 Back to explore
               </button>
-              
+
               <div className="movie-details-hero">
                 <div className="details-backdrop" style={{ backgroundImage: `url(${selected.Poster !== "N/A" ? selected.Poster : ""})` }}></div>
                 <div className="details-content">
@@ -274,11 +300,11 @@ export default function App() {
                       </div>
                     </div>
                     <p className="details-subtitle">{selected.Year} • {selected.Runtime} • {selected.Genre}</p>
-                    
+
                     <div className="details-actions">
                       <button className="btn-primary">Watch Trailer</button>
                       <button className={`btn-icon ${isFavorite(selected.imdbID) ? "active" : ""}`} onClick={() => toggleFavorite(selected)}>
-                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
                       </button>
                     </div>
 
@@ -286,7 +312,20 @@ export default function App() {
                       <h3>Synopsis</h3>
                       <p>{selected.Plot}</p>
                     </div>
-                    
+                    {trailerUrl && (
+                      <div style={{ marginTop: "1.5rem" }}>
+                        <h3 style={{ marginBottom: "0.75rem" }}>Trailer</h3>
+                        <iframe
+                          width="100%"
+                          height="315"
+                          src={trailerUrl}
+                          title="Trailer"
+                          frameBorder="0"
+                          allowFullScreen
+                          style={{ borderRadius: 10 }}
+                        />
+                      </div>
+                    )}
                     <div className="details-meta-grid">
                       <div className="meta-item">
                         <span>Director</span>
@@ -360,7 +399,7 @@ function MovieCard({ movie, onSelect, onToggleFav, isFav }) {
         <img src={movie.Poster !== "N/A" ? movie.Poster : "https://via.placeholder.com/300x450?text=No+Poster"} alt={movie.Title} loading="lazy" />
         <div className="poster-overlay">
           <button className={`heart-btn ${isFav ? "active" : ""}`} onClick={(e) => { e.stopPropagation(); onToggleFav(movie); }}>
-             <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
           </button>
         </div>
       </div>
