@@ -1,10 +1,11 @@
 import { supabase } from "./supabase";
 import "./App.css";
 import { useState, useEffect, useRef } from "react";
+import Auth from "./Auth";
 
 const API_KEY = "1aaf70c8";
 const BASE_URL = "https://www.omdbapi.com";
-const POPULAR = ["american gangster", "heat", "suit", "mafia", "al patcino", "matrix", "avatar", "titanic", "italian", "john wick", "the godfather", "harry potter"];
+const POPULAR = ["mafia", "heat", "suit", "mafia", "al patcino", "matrix", "avatar", "titanic", "italian", "john wick", "the godfather", "harry potter"];
 
 export default function App() {
   const [query, setQuery] = useState("");
@@ -22,10 +23,22 @@ export default function App() {
   const [homeKeyIndex, setHomeKeyIndex] = useState(0);
   const [loadingHome, setLoadingHome] = useState(false);
   const bottomRef = useRef(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    loadFavorites();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) loadFavorites(session.user.id);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) loadFavorites(session.user.id);
+    });
+
     loadHomeMovies(1, 0);
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -53,8 +66,8 @@ export default function App() {
     setLoadingHome(false);
   }
 
-  async function loadFavorites() {
-    const { data } = await supabase.from("favorites").select("*");
+  async function loadFavorites(userId) {
+    const { data } = await supabase.from("favorites").select("*").eq("user_id", userId);
     if (data) {
       const mapped = data.map(f => ({
         imdbID: f.imdb_id,
@@ -145,6 +158,7 @@ export default function App() {
         imdb_rating: movie.imdbRating || null,
         runtime: movie.Runtime || null,
         type: movie.Type || null,
+        user_id: user.id,
       };
       await supabase.from("favorites").insert(row);
       setFavorites(prev => [...prev, movie]);
@@ -155,6 +169,7 @@ export default function App() {
     return favorites.some(f => f.imdbID === imdbID);
   }
 
+  if (!user) return <Auth />;
   return (
     <div className="app-container">
       <aside className="sidebar">
@@ -183,6 +198,12 @@ export default function App() {
             <button className="promo-btn">Upgrade</button>
           </div>
         </div>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          style={{ background: "none", border: "1px solid #e50914", color: "#e50914", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 13, margin: "1rem" }}
+        >
+          Logout
+        </button>
       </aside>
 
       <main className="main-viewport">
