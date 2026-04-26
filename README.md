@@ -35,7 +35,10 @@ CenInfo is a modern movie discovery web application that allows users to search 
 src/
 │── assets/          
 │── components/      
-│── App.jsx          
+│── App.jsx    
+│── Auth.jsx
+│── Auth.css
+│── main.jsx
 │── supabase.js      
 │── App.css          
 
