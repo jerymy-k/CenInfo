@@ -22,15 +22,13 @@ function Main() {
   const [totalResults, setTotalResults] = useState(0);
   const [favorites, setFavorites] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
-  const [homeMovies, setHomeMovies] = useState([]);
-  const [homePage, setHomePage] = useState(1);
-  const [loadingHome, setLoadingHome] = useState(false);
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [trailerUrl, setTrailerUrl] = useState(null);
   const [providers, setProviders] = useState(null);
-  const bottomRef = useRef(null);
-  
+  const [categories, setCategories] = useState({});
+  const [loadingHome, setLoadingHome] = useState(false);
+
   // Upgraded Watch Section State
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
@@ -57,19 +55,11 @@ function Main() {
     loadHomeMovies(1);
     return () => subscription.unsubscribe();
   }, []);
+  const lastLoadedID = useRef(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !loadingHome && !query.trim()) {
-        loadHomeMovies(homePage + 1);
-      }
-    }, { threshold: 1.0 });
-    if (bottomRef.current) observer.observe(bottomRef.current);
-    return () => observer.disconnect();
-  }, [homePage, loadingHome, query]);
-
-  useEffect(() => {
-    if (urlImdbID) {
+    if (urlImdbID && lastLoadedID.current !== urlImdbID) {
+      lastLoadedID.current = urlImdbID;
       handleSelect(urlImdbID);
     }
   }, [urlImdbID]);
@@ -82,24 +72,45 @@ function Main() {
     }
   }, [selected, season]);
 
-  async function loadHomeMovies(pg = 1) {
-    setLoadingHome(true);
-    const res = await fetch(
-      `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}&page=${pg}`
-    );
-    const data = await res.json();
-    if (data.results?.length) {
-      const mapped = data.results.map(m => ({
-        imdbID: m.imdb_id || `tmdb-${m.id}`,
-        Title: m.title,
-        Year: m.release_date?.split("-")[0],
-        Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
-        Type: "movie",
-        tmdbId: m.id,
-      }));
-      setHomeMovies(prev => pg === 1 ? mapped : [...prev, ...mapped]);
-      setHomePage(pg);
+  useEffect(() => {
+    if (!urlImdbID && selected) {
+      setSelected(null);
+      lastLoadedID.current = null;
     }
+  }, [urlImdbID]);
+
+  async function loadHomeMovies() {
+    setLoadingHome(true);
+    const endpoints = [
+      { key: "trending", label: "🔥 Trending Now", url: `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}` },
+      { key: "series", label: "📺 Popular Series", url: `https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_KEY}` },
+      { key: "action", label: "💥 Action", url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=28` },
+      { key: "comedy", label: "😂 Comedy", url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=35` },
+      { key: "documentary", label: "🎙️ Documentary", url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=99` },
+      { key: "horror", label: "👻 Horror", url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=27` },
+    ];
+
+    const results = {};
+    await Promise.all(endpoints.map(async ({ key, label, url }) => {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.results?.length) {
+          results[key] = {
+            label,
+            movies: data.results.map(m => ({
+              imdbID: m.imdb_id || `tmdb-${m.id}`,
+              Title: m.title || m.name,
+              Year: (m.release_date || m.first_air_date)?.split("-")[0],
+              Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
+              Type: m.title ? "movie" : "series",
+            }))
+          };
+        }
+      } catch { }
+    }));
+
+    setCategories(results);
     setLoadingHome(false);
   }
 
@@ -170,33 +181,40 @@ function Main() {
 
     if (!query.trim()) {
       setLoadingHome(true);
-      setHomeMovies([]);
-      setHomePage(1);
+      setCategories({});
       try {
         let url = "";
-        if (newType === "" || newType === "movie") {
-          url = `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}&page=1`;
+        let label = "";
+        if (newType === "") {
+          await loadHomeMovies();
+          setLoadingHome(false);
+          return;
+        } else if (newType === "movie") {
+          url = `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}`;
+          label = "🔥 Trending Movies";
         } else if (newType === "series") {
-          url = `https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_KEY}&page=1`;
+          url = `https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_KEY}`;
+          label = "📺 Trending Series";
         } else if (newType === "documentary") {
-          url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=99&page=1`;
+          url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=99`;
+          label = "🎙️ Documentaries";
         }
 
         const res = await fetch(url);
         const data = await res.json();
-
         if (data.results?.length) {
-          const mapped = data.results.map(m => ({
-            imdbID: m.imdb_id || `tmdb-${m.id}`,
-            Title: m.title || m.name,
-            Year: (m.release_date || m.first_air_date)?.split("-")[0],
-            Poster: m.poster_path
-              ? `https://image.tmdb.org/t/p/w500${m.poster_path}`
-              : "https://via.placeholder.com/300x450?text=No+Poster",
-            Type: newType || "movie",
-            tmdbId: m.id,
-          }));
-          setHomeMovies(mapped);
+          setCategories({
+            filtered: {
+              label,
+              movies: data.results.map(m => ({
+                imdbID: m.imdb_id || `tmdb-${m.id}`,
+                Title: m.title || m.name,
+                Year: (m.release_date || m.first_air_date)?.split("-")[0],
+                Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
+                Type: newType === "series" ? "series" : "movie",
+              }))
+            }
+          });
         }
       } catch {
         setError("Something went wrong.");
@@ -302,7 +320,6 @@ function Main() {
     setLoading(false);
   }
 
-
   async function fetchTrailer(title, year, mediaType = "movie") {
     try {
       const searchUrl = mediaType === "tv"
@@ -366,7 +383,6 @@ function Main() {
     setLoadingEpisodes(false);
   }
 
-
   async function toggleFavorite(movie) {
     if (!user) { setShowAuth(true); return; }
     if (isFavorite(movie.imdbID)) {
@@ -405,20 +421,20 @@ function Main() {
       {/* ================= NEW HEADER REPLACING SIDEBAR ================= */}
       <header className="main-header">
         <div className="header-left">
-          <img 
-            className="logo" 
-            src={logo} 
-            alt="app-logo" 
-            onClick={() => { setSelected(null); setShowFavorites(false); navigate('/'); }} 
+          <img
+            className="logo"
+            src={logo}
+            alt="app-logo"
+            onClick={() => { setSelected(null); setShowFavorites(false); navigate('/'); }}
           />
           <nav className="nav-links-horizontal">
-            <button 
+            <button
               className={`nav-link-btn ${!showFavorites && !selected ? "active" : ""}`}
               onClick={() => { setShowFavorites(false); setSelected(null); navigate('/'); }}
             >
               Explore
             </button>
-            <button 
+            <button
               className={`nav-link-btn ${showFavorites ? "active" : ""}`}
               onClick={() => {
                 if (!user) { setShowAuth(true); return; }
@@ -470,7 +486,11 @@ function Main() {
 
         ) : selected ? (
           <div className="view-wrapper fade-in">
-            <button className="back-link-btn" onClick={() => { setSelected(null); navigate('/'); }}>                
+            <button className="back-link-btn" onClick={() => {
+              setSelected(null);
+              lastLoadedID.current = null;
+              navigate('/');
+            }}>
               <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
               Back to explore
             </button>
@@ -562,79 +582,79 @@ function Main() {
 
             {/* ================= UPGRADED WATCH SECTION ================= */}
             {/* ================= UPGRADED WATCH SECTION ================= */}
-<section className="watch-card">
-  <h3 className="section-title" style={{ marginBottom: "1.5rem" }}>Streaming Hub</h3>
-  
-  {selected.Type === "series" && (
-    <div className="series-controls">
-      {/* SEASON SELECT - Controlled by your totalSeasons logic */}
-      <div className="select-group">
-        <label>Season</label>
-        <select 
-          className="custom-select" 
-          value={season} 
-          onChange={e => {
-            setSeason(Number(e.target.value));
-            setEpisode(1);
-          }}
-        >
-          {[...Array(parseInt(selected.totalSeasons && selected.totalSeasons !== "N/A" ? selected.totalSeasons : 1)).keys()].map(i => (
-            <option key={i+1} value={i+1}>Season {i+1}</option>
-          ))}
-        </select>
-      </div>
-      
-      {/* EPISODE SELECT - Shows only available episodes for the selected season */}
-      <div className="select-group">
-        <label>Episode</label>
-        <select 
-          className="custom-select" 
-          value={episode}
-          disabled={loadingEpisodes || episodes.length === 0}
-          onChange={e => setEpisode(Number(e.target.value))}
-        >
-          {loadingEpisodes ? (
-            <option value={episode}>Loading...</option>
-          ) : episodes.length > 0 ? (
-            episodes.map(ep => (
-              <option key={ep.imdbID || ep.Episode} value={Number(ep.Episode)}>
-                Episode {ep.Episode} - {ep.Title}
-              </option>
-            ))
-          ) : (
-            <option value={1}>No episodes found</option>
-          )}
-        </select>
-      </div>
+            <section className="watch-card">
+              <h3 className="section-title" style={{ marginBottom: "1.5rem" }}>Streaming Hub</h3>
 
-    </div>
-  )}
+              {selected.Type === "series" && (
+                <div className="series-controls">
+                  {/* SEASON SELECT - Controlled by your totalSeasons logic */}
+                  <div className="select-group">
+                    <label>Season</label>
+                    <select
+                      className="custom-select"
+                      value={season}
+                      onChange={e => {
+                        setSeason(Number(e.target.value));
+                        setEpisode(1);
+                      }}
+                    >
+                      {[...Array(parseInt(selected.totalSeasons && selected.totalSeasons !== "N/A" ? selected.totalSeasons : 1)).keys()].map(i => (
+                        <option key={i + 1} value={i + 1}>Season {i + 1}</option>
+                      ))}
+                    </select>
+                  </div>
 
-  <div className="player-selector-grid">
-    {['Server Alpha', 'Server Beta', 'Server Gamma', 'Server Delta'].map((name, i) => (
-      <button 
-        key={i} 
-        className={`player-btn ${playerIndex === i ? 'active' : ''}`}
-        onClick={() => setPlayerIndex(i)}
-      >
-        {name}
-      </button>
-    ))}
-  </div>
+                  {/* EPISODE SELECT - Shows only available episodes for the selected season */}
+                  <div className="select-group">
+                    <label>Episode</label>
+                    <select
+                      className="custom-select"
+                      value={episode}
+                      disabled={loadingEpisodes || episodes.length === 0}
+                      onChange={e => setEpisode(Number(e.target.value))}
+                    >
+                      {loadingEpisodes ? (
+                        <option value={episode}>Loading...</option>
+                      ) : episodes.length > 0 ? (
+                        episodes.map(ep => (
+                          <option key={ep.imdbID || ep.Episode} value={Number(ep.Episode)}>
+                            Episode {ep.Episode} - {ep.Title}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={1}>No episodes found</option>
+                      )}
+                    </select>
+                  </div>
 
-  <div className="video-wrapper">
-    <iframe
-      src={[
-        selected.Type === "series" ? `https://vidsrc.to/embed/tv/${selected.imdbID}/${season}/${episode}` : `https://vidsrc.to/embed/movie/${selected.imdbID}`,
-        selected.Type === "series" ? `https://www.2embed.cc/embedtv/${selected.imdbID}&s=${season}&e=${episode}` : `https://www.2embed.cc/embed/${selected.imdbID}`,
-        selected.Type === "series" ? `https://vidsrc.me/embed/tv?imdb=${selected.imdbID}&season=${season}&episode=${episode}` : `https://vidsrc.me/embed/movie?imdb=${selected.imdbID}`,
-        selected.Type === "series" ? `https://multiembed.mov/?video_id=${selected.imdbID}&s=${season}&e=${episode}` : `https://multiembed.mov/?video_id=${selected.imdbID}`
-      ][playerIndex]}
-      allowFullScreen
-      title="Player"
-    />
-  </div>
-</section>
+                </div>
+              )}
+
+              <div className="player-selector-grid">
+                {['Server Alpha', 'Server Beta', 'Server Gamma', 'Server Delta'].map((name, i) => (
+                  <button
+                    key={i}
+                    className={`player-btn ${playerIndex === i ? 'active' : ''}`}
+                    onClick={() => setPlayerIndex(i)}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+
+              <div className="video-wrapper">
+                <iframe
+                  src={[
+                    selected.Type === "series" ? `https://vidsrc.me/embed/tv?imdb=${selected.imdbID}&season=${season}&episode=${episode}` : `https://vidsrc.me/embed/movie?imdb=${selected.imdbID}`,
+                    selected.Type === "series" ? `https://vidsrc.to/embed/tv/${selected.imdbID}/${season}/${episode}` : `https://vidsrc.to/embed/movie/${selected.imdbID}`,
+                    selected.Type === "series" ? `https://www.2embed.cc/embedtv/${selected.imdbID}&s=${season}&e=${episode}` : `https://www.2embed.cc/embed/${selected.imdbID}`,
+                    selected.Type === "series" ? `https://multiembed.mov/?video_id=${selected.imdbID}&s=${season}&e=${episode}` : `https://multiembed.mov/?video_id=${selected.imdbID}`
+                  ][playerIndex]}
+                  allowFullScreen
+                  title="Player"
+                />
+              </div>
+            </section>
           </div>
 
         ) : (
@@ -652,16 +672,27 @@ function Main() {
 
             {error && <div className="error-card" style={{ padding: '1rem', background: 'rgba(229,9,20,0.1)', border: '1px solid #e50914', borderRadius: '12px', color: '#ff6b6b', marginBottom: '2rem' }}>{error}</div>}
 
-            <div className="movie-grid">
-              {(query.trim() ? results : homeMovies).map((movie, i) => (
-                <MovieCard key={movie.imdbID + i} movie={movie} onSelect={openDetails} onToggleFav={toggleFavorite} isFav={isFavorite(movie.imdbID)} />
-              ))}
-            </div>
-
-            {!query.trim() && (
-              <div ref={bottomRef} className="loader-container">
-                {loadingHome && <div className="spinner"></div>}
+            {query.trim() ? (
+              <div className="movie-grid">
+                {results.map((movie, i) => (
+                  <MovieCard key={movie.imdbID + i} movie={movie} onSelect={openDetails} onToggleFav={toggleFavorite} isFav={isFavorite(movie.imdbID)} />
+                ))}
               </div>
+            ) : loadingHome ? (
+              <div className="loader-container"><div className="spinner"></div></div>
+            ) : (
+              Object.values(categories).map(({ label, movies }) => (
+                <div key={label} style={{ marginBottom: "2.5rem" }}>
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem", color: "#fff" }}>{label}</h3>
+                  <div style={{ display: "flex", gap: "1rem", overflowX: "auto", paddingBottom: "0.5rem", scrollbarWidth: "none" }}>
+                    {movies.map((movie, i) => (
+                      <div key={movie.imdbID + i} style={{ flexShrink: 0, width: 140 }}>
+                        <MovieCard movie={movie} onSelect={openDetails} onToggleFav={toggleFavorite} isFav={isFavorite(movie.imdbID)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
             )}
 
             {/* ================= UPGRADED PAGINATION ================= */}
@@ -671,8 +702,8 @@ function Main() {
                   ← Previous
                 </button>
                 <div className="page-indicator">
-                  <span style={{color: 'var(--primary)', fontWeight: 'bold'}}>{page}</span> 
-                  <span style={{color: 'var(--text-muted)'}}> / {Math.ceil(totalResults / 12)}</span>
+                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{page}</span>
+                  <span style={{ color: 'var(--text-muted)' }}> / {Math.ceil(totalResults / 12)}</span>
                 </div>
                 <button className="page-btn-modern" onClick={() => handleSearch(page + 1)} disabled={page >= Math.ceil(totalResults / 12)}>
                   Next →
