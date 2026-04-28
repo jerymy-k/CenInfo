@@ -50,6 +50,8 @@ function Main() {
   const railRefs = useRef({});
   const homeMovies = Object.values(categories).flatMap(section => section.movies || []);
 
+  const [recommendations, setRecommendations] = useState([]);
+
   function saveMovieCache(movie) {
     if (!movie?.imdbID) return;
     try {
@@ -284,6 +286,7 @@ function Main() {
     setPlayerIndex(0);
     setEpisodes([]);
     setLoadingEpisodes(false);
+    setRecommendations([]);
 
     let realImdbID = imdbID;
     let tmdbMediaType = "movie";
@@ -367,6 +370,7 @@ function Main() {
         const url = await fetchTrailer(data.Title, cleanYear, mediaType);
         setTrailerUrl(url);
         await fetchProviders(tmdbId, mediaType);
+        await fetchRecommendations(tmdbId, mediaType);
       }
     } catch {
       setError("Something went wrong.");
@@ -488,6 +492,28 @@ function Main() {
 
   function focusSearch() {
     searchInputRef.current?.focus();
+  }
+
+  async function fetchRecommendations(tmdbId, mediaType = "movie") {
+    try {
+      const res = await fetch(
+        `https://api.themoviedb.org/3/${mediaType}/${tmdbId}/recommendations?api_key=${TMDB_KEY}`
+      );
+      const data = await res.json();
+      if (data.results?.length) {
+        setRecommendations(data.results.map(m => ({
+          imdbID: m.imdb_id || `tmdb-${m.id}`,
+          Title: m.title || m.name,
+          Year: (m.release_date || m.first_air_date)?.split("-")[0],
+          Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
+          Type: m.title ? "movie" : "series",
+        })));
+      } else {
+        setRecommendations([]);
+      }
+    } catch {
+      setRecommendations([]);
+    }
   }
 
   const featuredMovie =
@@ -823,6 +849,29 @@ function Main() {
                 </div>
               </div>
             </section>
+            {recommendations.length > 0 && (
+              <section className="content-section" style={{ marginTop: "2rem" }}>
+                <div className="section-heading-row">
+                  <div>
+                    <p className="eyebrow">You might also like</p>
+                    <h3>Recommendations</h3>
+                  </div>
+                  <span>{recommendations.length} titles</span>
+                </div>
+                <div className="movie-rail">
+                  {recommendations.map((movie, i) => (
+                    <div key={movie.imdbID + i} className="rail-card-wrap">
+                      <MovieCard
+                        movie={movie}
+                        onSelect={openDetails}
+                        onToggleFav={toggleFavorite}
+                        isFav={isFavorite(movie.imdbID)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         ) : (
           <div className="view-wrapper fade-in">
