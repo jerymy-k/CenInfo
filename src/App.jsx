@@ -702,12 +702,12 @@ function Main() {
 
                 </div>
               </div>
-                  <div className="details-meta-grid">
-                    <MetaItem label="Director" value={selected.Director} />
-                    <MetaItem label="Cast" value={selected.Actors} />
-                    <MetaItem label="Awards" value={selected.Awards} />
-                    <MetaItem label="Language" value={selected.Language} />
-                  </div>
+              <div className="details-meta-grid">
+                <MetaItem label="Director" value={selected.Director} />
+                <MetaItem label="Cast" value={selected.Actors} />
+                <MetaItem label="Awards" value={selected.Awards} />
+                <MetaItem label="Language" value={selected.Language} />
+              </div>
             </div>
 
             <section className="watch-card watch-cinema-section">
@@ -757,8 +757,6 @@ function Main() {
                       ][playerIndex]}
                       key={`${selected.imdbID}-${season}-${episode}-${playerIndex}`}
                       allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                      sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-                      referrerPolicy="no-referrer"
                       allowFullScreen
                       title={`${selected.Title} player`}
                     />
