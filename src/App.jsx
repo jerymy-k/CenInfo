@@ -51,6 +51,7 @@ function Main() {
   const homeMovies = Object.values(categories).flatMap(section => section.movies || []);
 
   const [recommendations, setRecommendations] = useState([]);
+  const iframeRef = useRef(null);
 
   function saveMovieCache(movie) {
     if (!movie?.imdbID) return;
@@ -534,6 +535,14 @@ function Main() {
     });
   }
 
+  function handleNativeFullscreen() {
+    const el = iframeRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+  }
+
   const totalPages = Math.ceil(totalResults / 12);
 
   return (
@@ -715,13 +724,12 @@ function Main() {
                       <h3 className="section-title">Official Trailer</h3>
                       <div className="video-wrapper trailer-wrapper">
                         <iframe
-                          src={trailerUrl}
-                          title={`${selected.Title} trailer`}
-                          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                          sandbox="allow-scripts allow-same-origin allow-presentation"
-                          referrerPolicy="strict-origin-when-cross-origin"
-                          allowFullScreen
-                        />
+  src={trailerUrl}
+  title={`${selected.Title} trailer`}
+  allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+  allowFullScreen
+  style={{ width: "100%", height: "100%", border: "none" }}
+/>
                       </div>
                     </section>
                   )}
@@ -775,18 +783,28 @@ function Main() {
 
                   <div className="video-wrapper watch-cinema-video">
                     <iframe
-                      src={[
-                        selected.Type === "series" ? `https://vidsrc.me/embed/tv?imdb=${selected.imdbID}&season=${season}&episode=${episode}` : `https://vidsrc.me/embed/movie?imdb=${selected.imdbID}`,
-                        selected.Type === "series" ? `https://vidsrc.to/embed/tv/${selected.imdbID}/${season}/${episode}` : `https://vidsrc.to/embed/movie/${selected.imdbID}`,
-                        selected.Type === "series" ? `https://www.2embed.cc/embedtv/${selected.imdbID}&s=${season}&e=${episode}` : `https://www.2embed.cc/embed/${selected.imdbID}`,
-                        selected.Type === "series" ? `https://multiembed.mov/?video_id=${selected.imdbID}&s=${season}&e=${episode}` : `https://multiembed.mov/?video_id=${selected.imdbID}`
-                      ][playerIndex]}
-                      key={`${selected.imdbID}-${season}-${episode}-${playerIndex}`}
-                      allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                      allowFullScreen
-                      title={`${selected.Title} player`}
-                    />
+  ref={iframeRef}
+  src={[
+    selected.Type === "series" ? `https://vidsrc.me/embed/tv?imdb=${selected.imdbID}&season=${season}&episode=${episode}` : `https://vidsrc.me/embed/movie?imdb=${selected.imdbID}`,
+    selected.Type === "series" ? `https://vidsrc.to/embed/tv/${selected.imdbID}/${season}/${episode}` : `https://vidsrc.to/embed/movie/${selected.imdbID}`,
+    selected.Type === "series" ? `https://www.2embed.cc/embedtv/${selected.imdbID}&s=${season}&e=${episode}` : `https://www.2embed.cc/embed/${selected.imdbID}`,
+    selected.Type === "series" ? `https://multiembed.mov/?video_id=${selected.imdbID}&s=${season}&e=${episode}` : `https://multiembed.mov/?video_id=${selected.imdbID}`
+  ][playerIndex]}
+  key={`${selected.imdbID}-${season}-${episode}-${playerIndex}`}
+  title={`${selected.Title} player`}
+  allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+  allowFullScreen
+  style={{ width: "100%", height: "100%", border: "none", position: "absolute", top: 0, left: 0 }}
+/>
                   </div>
+                  <button onClick={handleNativeFullscreen} style={{
+                    marginTop: 8, padding: "8px 16px",
+                    background: "#e50914", border: "none",
+                    color: "white", borderRadius: 8,
+                    cursor: "pointer", fontSize: 14, width: "100%"
+                  }}>
+                    ⛶ Open Fullscreen
+                  </button>
 
                   <div className="watch-controls-panel">
                     {selected.Type === "series" && (
