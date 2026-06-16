@@ -35,10 +35,19 @@ export default function Auth() {
   }
 
   async function handleGoogle() {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin }
-    });
+    setLoading(true);
+    setError("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin }
+      });
+      if (error) setError(error.message);
+    } catch (err) {
+      setError(err.message || "Failed to initialize Google Login.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
