@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { User, LogOut, Heart, CheckCircle, Clock, Film } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../supabase";
 
 export default function ProfilePage() {
   const { user, signOut, history, favorites, watchlists } = useAuth();
@@ -15,18 +16,28 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem("ceninfo_profile");
-    if (saved) {
-      setProfile(JSON.parse(saved));
-    } else if (user) {
-      setProfile(p => ({ ...p, username: user.email.split('@')[0] }));
+    if (user) {
+      supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data }) => {
+        if (data) setProfile(data);
+        else setProfile(p => ({ ...p, username: user.email.split('@')[0], avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.id }));
+      });
+    } else {
+      const saved = localStorage.getItem(`ceninfo_profile_guest`);
+      if (saved) setProfile(JSON.parse(saved));
+      else setProfile({ username: 'MovieFan', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guest' });
     }
   }, [user]);
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     const updated = { ...profile, username: editName || profile.username };
     setProfile(updated);
-    localStorage.setItem("ceninfo_profile", JSON.stringify(updated));
+    
+    if (user) {
+      await supabase.from("profiles").update({ username: updated.username }).eq("id", user.id);
+    } else {
+      localStorage.setItem(`ceninfo_profile_guest`, JSON.stringify(updated));
+    }
+    
     setIsEditing(false);
   };
 

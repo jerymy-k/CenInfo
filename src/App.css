@@ -329,9 +329,10 @@
 /* --- CONTENT RAILS --- */
 .discover-header {
   display: flex;
-  align-items: center;
-  gap: 24px;
-  margin-bottom: 20px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 10px;
 }
 
 .page-title {
@@ -342,11 +343,6 @@
 }
 
 @media (max-width: 768px) {
-  .discover-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
   .page-title {
     font-size: 28px;
   }
@@ -716,7 +712,7 @@
 .filters-container {
   display: flex;
   gap: 12px;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
@@ -900,6 +896,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
 }
 
 .panel-title {
@@ -1086,12 +1084,12 @@
   overflow-y: auto;
 }
 
-/* --- EPISODES LIST --- */
 .episodes-scroll-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 250px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 8px;
 }
@@ -1141,6 +1139,33 @@
 .ep-info {
   display: flex;
   flex-direction: column;
+  flex: 1;
+}
+
+.ep-watched-toggle {
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ep-watched-toggle:hover {
+  color: white;
+  background: rgba(255,255,255,0.1);
+  transform: scale(1.1);
+}
+
+.ep-watched-toggle.is-watched {
+  color: var(--accent-fuchsia);
+}
+
+.episode-card-btn.watched .ep-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,0.2);
 }
 
 .ep-title {
@@ -1530,7 +1555,7 @@
   }
 
   .episodes-scroll-list {
-    max-height: 200px;
+    max-height: 40vh;
   }
 
   .episode-card-btn {

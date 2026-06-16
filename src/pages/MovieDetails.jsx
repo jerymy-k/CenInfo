@@ -8,13 +8,14 @@ import { fetchMovieDetails, fetchTrailer, fetchProviders, fetchEpisodes, fetchRe
 import ReviewSection from "../components/ReviewSection";
 import ProviderBlock from "../components/ProviderBlock";
 import MovieCard from "../components/MovieCard";
+import { supabase } from "../supabase";
 
 const SERVER_OPTIONS = ["Server Alpha", "Server Beta", "Server Gamma", "Server Delta"];
 
 export default function MovieDetails() {
   const { imdbID } = useParams();
   const navigate = useNavigate();
-  const { toggleFavorite, isFavorite, addToHistory, updateWatchlist, getWatchlistStatus } = useAuth();
+  const { user, setShowAuth, toggleFavorite, isFavorite, addToHistory, updateWatchlist, getWatchlistStatus } = useAuth();
   
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -25,6 +26,7 @@ export default function MovieDetails() {
   const [cast, setCast] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [collection, setCollection] = useState(null);
+  const [tmdbIdState, setTmdbIdState] = useState(null);
   
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
@@ -34,8 +36,64 @@ export default function MovieDetails() {
   const [theaterMode, setTheaterMode] = useState(false);
   const [showTrailer, setShowTrailer] = useState(false);
   const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
+  const [watchedEpisodes, setWatchedEpisodes] = useState([]);
   
   const iframeRef = useRef(null);
+  const playerContainerRef = useRef(null);
+  const controlsRef = useRef(null);
+
+  useEffect(() => {
+    if (user) {
+      supabase.from("watched_episodes").select("episode_id").eq("user_id", user.id).then(({ data }) => {
+        if (data) setWatchedEpisodes(data.map(r => r.episode_id));
+      });
+    } else {
+      setWatchedEpisodes([]);
+    }
+  }, [user]);
+
+  // Sync sidebar height perfectly with the 16:9 video player
+  useEffect(() => {
+    if (!playerContainerRef.current || !controlsRef.current) return;
+    
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.target === playerContainerRef.current) {
+          controlsRef.current.style.height = `${entry.contentRect.height}px`;
+        }
+      }
+    });
+    
+    observer.observe(playerContainerRef.current);
+    return () => observer.disconnect();
+  }, [selected]);
+
+  const toggleWatched = async (epId, e) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
+    
+    setWatchedEpisodes(prev => {
+      let newWatched;
+      const isRemoving = prev.includes(epId);
+      if (isRemoving) {
+        newWatched = prev.filter(id => id !== epId);
+      } else {
+        newWatched = [...prev, epId];
+      }
+      
+      if (isRemoving) {
+        supabase.from("watched_episodes").delete().eq("user_id", user.id).eq("episode_id", epId).then();
+      } else {
+        supabase.from("watched_episodes").insert({ user_id: user.id, episode_id: epId }).then();
+      }
+      
+      return newWatched;
+    });
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -56,7 +114,7 @@ export default function MovieDetails() {
       }
       
       setSelected(data);
-      if (addToHistory) addToHistory(data);
+      setTmdbIdState(tmdbId);
       
       if (tmdbId) {
         fetchTrailer(data.Title, cleanYear, mediaType).then(setTrailerUrl);
@@ -145,6 +203,7 @@ export default function MovieDetails() {
               initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}
             >
               <button className="btn-primary" style={{ flex: '1 1 120px', justifyContent: 'center' }} onClick={() => {
+                if (addToHistory) addToHistory(selected);
                 document.getElementById('watch-player')?.scrollIntoView({ behavior: "smooth" });
               }}>
                 <Play size={20} fill="currentColor" /> Watch Now
@@ -239,6 +298,8 @@ export default function MovieDetails() {
               {selected.Plot}
             </motion.p>
             
+
+
             {/* Cast Rail */}
             {cast.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} style={{ marginBottom: '40px' }}>
@@ -308,15 +369,15 @@ export default function MovieDetails() {
 
           <div className="watch-layout-grid">
             {/* Player Column */}
-            <div className="watch-player-col">
+            <div className="watch-player-col" ref={playerContainerRef}>
               <div className="video-player-container">
                 <iframe
                   ref={iframeRef}
                   src={[
-                    selected.Type === "series" ? `https://vidsrc.to/embed/tv/${selected.imdbID}/${season}/${episode}` : `https://vidsrc.to/embed/movie/${selected.imdbID}`,
-                    selected.Type === "series" ? `https://vidsrc.me/embed/tv/${selected.imdbID}/${season}/${episode}` : `https://vidsrc.me/embed/movie?imdb=${selected.imdbID}`,
-                    selected.Type === "series" ? `https://www.2embed.cc/embedtv/${selected.imdbID}?s=${season}&e=${episode}` : `https://www.2embed.cc/embed/${selected.imdbID}`,
-                    selected.Type === "series" ? `https://multiembed.mov/?video_id=${selected.imdbID}&s=${season}&e=${episode}` : `https://multiembed.mov/?video_id=${selected.imdbID}`
+                    selected.Type === "series" ? `https://vidsrc.to/embed/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidsrc.to/embed/movie/${tmdbIdState || selected.imdbID}`,
+                    selected.Type === "series" ? `https://vidsrc.pm/embed/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidsrc.pm/embed/movie/${tmdbIdState || selected.imdbID}`,
+                    selected.Type === "series" ? `https://anyembed.xyz/embed/imdb-tv-${selected.imdbID}-${season}-${episode}` : `https://anyembed.xyz/embed/imdb-movie-${selected.imdbID}`,
+                    selected.Type === "series" ? `https://vidsrc.in/embed/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidsrc.in/embed/movie/${tmdbIdState || selected.imdbID}`
                   ][playerIndex]}
                   key={`${selected.imdbID}-${season}-${episode}-${playerIndex}`}
                   title={`${selected.Title} player`}
@@ -326,7 +387,7 @@ export default function MovieDetails() {
             </div>
 
             {/* Controls Sidebar (desktop) / Below (mobile) */}
-            <div className="watch-controls-col">
+            <div className="watch-controls-col" ref={controlsRef}>
               {/* Server Source */}
               <div className="control-panel-section">
                 <h4 className="panel-title"><Server size={18} /> Server Source</h4>
@@ -356,19 +417,32 @@ export default function MovieDetails() {
                     {loadingEpisodes ? (
                       <p style={{ color: 'var(--text-muted)' }}>Loading episodes...</p>
                     ) : episodes.length > 0 ? (
-                      episodes.map(ep => (
-                        <button 
-                          key={ep.imdbID || ep.Episode} 
-                          className={`episode-card-btn ${Number(ep.Episode) === episode ? 'active' : ''}`}
-                          onClick={() => setEpisode(Number(ep.Episode))}
-                        >
-                          <span className="ep-num">{ep.Episode}</span>
-                          <div className="ep-info">
-                            <span className="ep-title">{ep.Title}</span>
-                            <span className="ep-rating"><Star size={12} fill="var(--accent-fuchsia)" color="var(--accent-fuchsia)"/> {ep.imdbRating !== "N/A" ? ep.imdbRating : "NR"}</span>
-                          </div>
-                        </button>
-                      ))
+                      episodes.map(ep => {
+                        const epId = `${selected.imdbID}-S${season}E${ep.Episode}`;
+                        const isWatched = watchedEpisodes.includes(epId);
+                        return (
+                          <button 
+                            key={ep.imdbID || ep.Episode} 
+                            className={`episode-card-btn ${Number(ep.Episode) === episode ? 'active' : ''} ${isWatched ? 'watched' : ''}`}
+                            onClick={() => {
+                              setEpisode(Number(ep.Episode));
+                              if (addToHistory) addToHistory(selected);
+                            }}
+                          >
+                            <span className="ep-num">{ep.Episode}</span>
+                            <div className="ep-info">
+                              <span className="ep-title">{ep.Title}</span>
+                              <span className="ep-rating"><Star size={12} fill="var(--accent-fuchsia)" color="var(--accent-fuchsia)"/> {ep.imdbRating !== "N/A" ? ep.imdbRating : "NR"}</span>
+                            </div>
+                            <div 
+                              className={`ep-watched-toggle ${isWatched ? 'is-watched' : ''}`}
+                              onClick={(e) => toggleWatched(epId, e)}
+                            >
+                              <CheckCircle size={20} />
+                            </div>
+                          </button>
+                        );
+                      })
                     ) : (
                       <p style={{ color: 'var(--text-muted)' }}>No episodes found.</p>
                     )}

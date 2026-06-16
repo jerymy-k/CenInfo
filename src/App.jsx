@@ -15,6 +15,7 @@ import Library from "./pages/Library";
 import ProfilePage from "./pages/ProfilePage";
 import ActorProfile from "./pages/ActorProfile";
 import Discover from "./pages/Discover";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 import "./App.css";
 
@@ -28,8 +29,16 @@ function AnimatedRoutes() {
         <Route path="/movie/:imdbID" element={<MovieDetails />} />
         <Route path="/actor/:id" element={<ActorProfile />} />
         <Route path="/discover" element={<Discover />} />
-        <Route path="/library" element={<Library />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/library" element={
+          <ProtectedRoute>
+            <Library />
+          </ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } />
       </Routes>
     </AnimatePresence>
   );

@@ -21,7 +21,7 @@ export async function fetchHomeCategories() {
         results[key] = {
           label,
           movies: data.results.map(m => ({
-            imdbID: m.imdb_id || `tmdb-${m.id}`,
+            imdbID: m.imdb_id || (m.title ? `tmdb-movie-${m.id}` : `tmdb-tv-${m.id}`),
             Title: m.title || m.name,
             Year: (m.release_date || m.first_air_date)?.split("-")[0],
             Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
@@ -57,7 +57,7 @@ export async function fetchFilteredCategory(newType) {
     return {
       label,
       movies: data.results.map(m => ({
-        imdbID: m.imdb_id || `tmdb-${m.id}`,
+        imdbID: m.imdb_id || (newType === "series" ? `tmdb-tv-${m.id}` : `tmdb-movie-${m.id}`),
         Title: m.title || m.name,
         Year: (m.release_date || m.first_air_date)?.split("-")[0],
         Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
@@ -116,12 +116,21 @@ export async function fetchMovieDetails(imdbID) {
 
   try {
     if (imdbID.startsWith("tmdb-")) {
-      tmdbId = imdbID.replace("tmdb-", "");
+      if (imdbID.startsWith("tmdb-tv-")) {
+        tmdbMediaType = "tv";
+        tmdbId = imdbID.replace("tmdb-tv-", "");
+      } else if (imdbID.startsWith("tmdb-movie-")) {
+        tmdbMediaType = "movie";
+        tmdbId = imdbID.replace("tmdb-movie-", "");
+      } else {
+        tmdbId = imdbID.replace("tmdb-", "");
+      }
+
       let extRes = await fetch(`https://api.themoviedb.org/3/${tmdbMediaType}/${tmdbId}/external_ids?api_key=${TMDB_KEY}`);
       let extData = await extRes.json();
 
-      if (!extData.imdb_id) {
-        tmdbMediaType = "tv";
+      if (!extData.imdb_id && tmdbMediaType === "movie") {
+        // Fallback for legacy "tmdb-" IDs without type
         extRes = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}/external_ids?api_key=${TMDB_KEY}`);
         extData = await extRes.json();
       }
@@ -261,7 +270,7 @@ export async function fetchActorDetails(personId) {
     
     // Sort credits by popularity
     const sortedCredits = (credits.cast || []).sort((a, b) => b.popularity - a.popularity).map(item => ({
-      imdbID: item.id.toString(), // Using TMDB ID for routing
+      imdbID: `tmdb-${item.media_type || 'movie'}-${item.id}`, // Using TMDB ID for routing
       Title: item.title || item.name,
       Year: (item.release_date || item.first_air_date || "").split("-")[0] || "N/A",
       Poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "N/A",
@@ -298,7 +307,7 @@ export async function fetchAdvancedDiscover(type, genre, year, minRating, page =
     const data = await res.json();
     
     const results = data.results.map(item => ({
-      imdbID: item.id.toString(),
+      imdbID: `tmdb-${type}-${item.id}`,
       Title: item.title || item.name,
       Year: (item.release_date || item.first_air_date || "").split("-")[0] || "N/A",
       Poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "N/A",
@@ -328,7 +337,7 @@ export async function fetchMovieCollection(collectionId) {
       overview: data.overview,
       backdrop: data.backdrop_path ? `https://image.tmdb.org/t/p/w1280${data.backdrop_path}` : null,
       parts: sortedParts.map(item => ({
-        imdbID: item.id.toString(), // Using TMDB ID for routing
+        imdbID: `tmdb-movie-${item.id}`, // Using TMDB ID for routing
         Title: item.title,
         Year: (item.release_date || "").split("-")[0] || "N/A",
         Poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "N/A",
@@ -360,7 +369,7 @@ export async function fetchLiveSearch(query) {
       .filter(item => item.media_type === "movie" || item.media_type === "tv")
       .slice(0, 6)
       .map(item => ({
-        imdbID: `tmdb-${item.id}`,
+        imdbID: `tmdb-${item.media_type}-${item.id}`,
         Title: item.title || item.name,
         Type: item.media_type === "tv" ? "series" : "movie",
         Year: (item.release_date || item.first_air_date || "").split("-")[0] || "N/A",

@@ -172,33 +172,8 @@ export default function Home() {
         </section>
       )}
 
-      <div className="discover-header" style={{ padding: '0 5%', marginTop: query.trim() ? '120px' : '0' }}>
-        <h2 className="page-title">{query.trim() ? "Search Results" : "Explore Categories"}</h2>
-        <div className="filters-container">
-          {FILTERS.map(filter => (
-            <button
-              key={filter.value}
-              onClick={() => handleTypeChange(filter.value)}
-              className={`filter-btn ${type === filter.value ? "active" : ""}`}
-            >
-              {filter.label}
-            </button>
-          ))}
-          {query.trim() && (
-            <select className="modern-select" value={filterYear} onChange={(e) => { setFilterYear(e.target.value); handleSearch(1, e.target.value, query); }}>
-              <option value="">Any Year</option>
-              {Array.from({length: 40}, (_, i) => new Date().getFullYear() - i).map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
-
-      {error && <div className="error-card" style={{ margin: '0 5%' }}>{error}</div>}
-
       {!query.trim() && !loadingHome && history.length > 0 && (
-        <section className="content-section" style={{ paddingBottom: 0 }}>
+        <section className="content-section" style={{ paddingBottom: 0, marginTop: '20px' }}>
           <div className="section-header">
             <div>
               <p>Continue Watching</p>
@@ -229,6 +204,31 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <div className="discover-header" style={{ padding: '0 5%', marginTop: query.trim() ? '120px' : '40px' }}>
+        <h2 className="page-title">{query.trim() ? "Search Results" : "Explore Categories"}</h2>
+        <div className="filters-container">
+          {FILTERS.map(filter => (
+            <button
+              key={filter.value}
+              onClick={() => handleTypeChange(filter.value)}
+              className={`filter-btn ${type === filter.value ? "active" : ""}`}
+            >
+              {filter.label}
+            </button>
+          ))}
+          {query.trim() && (
+            <select className="modern-select" value={filterYear} onChange={(e) => { setFilterYear(e.target.value); handleSearch(1, e.target.value, query); }}>
+              <option value="">Any Year</option>
+              {Array.from({length: 40}, (_, i) => new Date().getFullYear() - i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
+      {error && <div className="error-card" style={{ margin: '0 5%' }}>{error}</div>}
 
       {query.trim() ? (
         <div style={{ padding: '0 5%' }}>

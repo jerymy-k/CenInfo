@@ -18,27 +18,16 @@ export function AuthProvider({ children }) {
   });
 
   useEffect(() => {
-    // Load local history
-    try {
-      const savedHist = localStorage.getItem("ceninfo_history");
-      if (savedHist) setHistory(JSON.parse(savedHist));
-      
-      const savedWatchlists = localStorage.getItem("ceninfo_watchlists");
-      if (savedWatchlists) setWatchlists(JSON.parse(savedWatchlists));
-    } catch { }
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) loadFavorites(session.user.id);
+      if (session?.user) loadUserData(session.user.id);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        loadFavorites(session.user.id);
+        loadUserData(session.user.id);
         setShowAuth(false);
-        
-        // Trigger Special Welcome ONLY on actual login event (not refresh)
         if (event === 'SIGNED_IN' && session.user.email === 'wakhidirazane@gmail.com') {
           setShowRazaneWelcome(true);
         }
@@ -50,25 +39,37 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function loadFavorites(userId) {
-    const { data } = await supabase.from("favorites").select("*").eq("user_id", userId);
-    if (data) {
-      const mapped = data.map(f => ({
-        imdbID: f.imdb_id,
-        Title: f.title,
-        Year: f.year,
-        Poster: f.poster,
-        Genre: f.genre,
-        Director: f.director,
-        Actors: f.actors,
-        Plot: f.plot,
-        imdbRating: f.imdb_rating,
-        Runtime: f.runtime,
-        Type: f.type,
-      }));
-      setFavorites(mapped);
+  async function loadUserData(userId) {
+    // Load favorites
+    const { data: favs } = await supabase.from("favorites").select("*").eq("user_id", userId);
+    if (favs) {
+      setFavorites(favs.map(f => ({
+        imdbID: f.imdb_id, Title: f.title, Year: f.year, Poster: f.poster,
+        Genre: f.genre, Director: f.director, Actors: f.actors, Plot: f.plot,
+        imdbRating: f.imdb_rating, Runtime: f.runtime, Type: f.type,
+      })));
+    }
+
+    // Load history
+    const { data: hist } = await supabase.from("history").select("*").eq("user_id", userId).order('viewed_at', { ascending: false });
+    if (hist) {
+      setHistory(hist.map(h => h.movie_data));
+    }
+
+    // Load watchlists
+    const { data: lists } = await supabase.from("watchlists").select("*").eq("user_id", userId);
+    if (lists) {
+      const newWatchlists = { planToWatch: [], watching: [], completed: [] };
+      lists.forEach(row => {
+        if (newWatchlists[row.list_type]) {
+          newWatchlists[row.list_type].push(row.movie_data);
+        }
+      });
+      setWatchlists(newWatchlists);
     }
   }
+
+
 
   async function toggleFavorite(movie) {
     if (!user) { setShowAuth(true); return; }
@@ -99,36 +100,55 @@ export function AuthProvider({ children }) {
     return favorites.some(f => f.imdbID === imdbID);
   }
 
-  function addToHistory(movie) {
+  async function addToHistory(movie) {
+    if (!user) return; // Silent return for history tracking
+    
     setHistory(prev => {
       const filtered = prev.filter(m => m.imdbID !== movie.imdbID);
-      const newHistory = [movie, ...filtered].slice(0, 50);
-      localStorage.setItem("ceninfo_history", JSON.stringify(newHistory));
-      return newHistory;
+      return [movie, ...filtered].slice(0, 50);
     });
+
+    if (user) {
+      await supabase.from("history").upsert({
+        user_id: user.id,
+        imdb_id: movie.imdbID,
+        movie_data: movie,
+        viewed_at: new Date().toISOString()
+      }, { onConflict: 'user_id, imdb_id' });
+    }
   }
 
-  function updateWatchlist(movie, status) {
+  async function updateWatchlist(movie, status) {
+    if (!user) { setShowAuth(true); return; }
+
     setWatchlists(prev => {
       const newLists = { ...prev };
-      // Remove from all custom lists
       Object.keys(newLists).forEach(key => {
         newLists[key] = newLists[key].filter(m => m.imdbID !== movie.imdbID);
       });
-      // Add to selected list
       if (status && status !== "none" && status !== "favorite") {
         if (!newLists[status]) newLists[status] = [];
         newLists[status].push(movie);
       }
-      localStorage.setItem("ceninfo_watchlists", JSON.stringify(newLists));
       return newLists;
     });
     
-    // Also toggle favorite if status is favorite
     if (status === "favorite" && !isFavorite(movie.imdbID)) {
       toggleFavorite(movie);
     } else if (status !== "favorite" && isFavorite(movie.imdbID)) {
       toggleFavorite(movie);
+    }
+
+    if (user) {
+      await supabase.from("watchlists").delete().eq("user_id", user.id).eq("imdb_id", movie.imdbID);
+      if (status && status !== "none" && status !== "favorite") {
+        await supabase.from("watchlists").insert({
+          user_id: user.id,
+          imdb_id: movie.imdbID,
+          list_type: status,
+          movie_data: movie
+        });
+      }
     }
   }
 
@@ -157,7 +177,9 @@ export function AuthProvider({ children }) {
       addToHistory,
       watchlists,
       updateWatchlist,
-      getWatchlistStatus
+      getWatchlistStatus,
+      showRazaneWelcome,
+      setShowRazaneWelcome
     }}>
       {children}
     </AuthContext.Provider>
