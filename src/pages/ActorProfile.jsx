@@ -48,14 +48,14 @@ export default function ActorProfile() {
   return (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="view-wrapper" style={{ padding: '120px 5%' }}
+      className="view-wrapper" style={{ padding: 'clamp(72px, 12vw, 120px) 5%' }}
     >
       <button className="search-trigger" style={{ width: 'fit-content', marginBottom: '20px', border: 'none' }} onClick={() => navigate(-1)}>
         <ArrowLeft size={16} /> Go Back
       </button>
 
       <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', marginBottom: '60px' }}>
-        <div style={{ flex: '0 0 300px' }}>
+        <div style={{ flex: '0 0 clamp(180px, 40vw, 300px)' }}>
           <img 
             src={profileImageUrl} 
             alt={actor.name} 
@@ -63,7 +63,7 @@ export default function ActorProfile() {
           />
         </div>
         <div style={{ flex: 1, minWidth: '300px' }}>
-          <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>{actor.name}</h1>
+          <h1 style={{ fontSize: 'clamp(28px, 6vw, 48px)', marginBottom: '16px' }}>{actor.name}</h1>
           <div style={{ display: 'flex', gap: '20px', marginBottom: '24px', flexWrap: 'wrap' }}>
             {actor.known_for_department && (
               <span className="meta-pill"><UserRound size={16}/> {actor.known_for_department}</span>
@@ -90,7 +90,7 @@ export default function ActorProfile() {
             <h2>Filmography</h2>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px, 100%), 1fr))', gap: '16px' }}>
           {actor.credits.map((movie, i) => (
             <MovieCard
               key={movie.imdbID + i}

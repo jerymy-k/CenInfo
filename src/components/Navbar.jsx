@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Compass, BookmarkPlus, PlayCircle, Film, Star } from "lucide-react";
+import { Search, X, Compass, BookmarkPlus, PlayCircle, Film, Star, Menu } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { fetchLiveSearch } from "../services/api";
@@ -10,6 +10,7 @@ import logo from "../assets/CenInfoLogo.png";
 export default function Navbar({ onSearch }) {
   const [query, setQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, favorites, setShowAuth, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -73,11 +74,11 @@ export default function Navbar({ onSearch }) {
         }}
       >
         <div className="header-left">
-          <Link to="/">
+          <Link to="/" onClick={() => setIsMobileMenuOpen(false)}>
             <img className="logo" src={logo} alt="CenInfo" />
           </Link>
 
-          <nav className="nav-links-horizontal" aria-label="Main navigation">
+          <nav className="nav-links-horizontal desktop-only" aria-label="Main navigation">
             <Link to="/" className={`nav-link-btn ${location.pathname === '/' ? 'active' : ''}`}>
               Explore
             </Link>
@@ -97,12 +98,12 @@ export default function Navbar({ onSearch }) {
           </nav>
         </div>
 
-        <button className="search-trigger" onClick={() => setIsSearchOpen(true)}>
+        <button className="search-trigger desktop-only" onClick={() => setIsSearchOpen(true)}>
           <Search size={16} />
           <span>Search movies, series...</span>
         </button>
 
-        <div className="header-right">
+        <div className="header-right desktop-only">
           {user && (
             <Link to="/profile" className="auth-btn login">
               Profile
@@ -114,7 +115,55 @@ export default function Navbar({ onSearch }) {
             <button className="auth-btn login" onClick={() => setShowAuth(true)}>Sign In</button>
           )}
         </div>
+        
+        <div className="mobile-header-actions">
+          <button className="mobile-search-btn" onClick={() => setIsSearchOpen(true)}>
+            <Search size={20} />
+          </button>
+          <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+            <Menu size={24} />
+          </button>
+        </div>
       </header>
+
+      {/* MOBILE HAMBURGER MENU */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(10, 0, 20, 0.95)', backdropFilter: 'blur(20px)', zIndex: 4000, display: 'flex', flexDirection: 'column', padding: '100px 30px' }}
+            initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+          >
+            <button style={{ position: 'absolute', top: '30px', right: '30px', background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setIsMobileMenuOpen(false)}>
+              <X size={32} />
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+              <Link to="/" style={{ color: 'white', fontSize: '32px', fontWeight: '800', textDecoration: 'none' }} onClick={() => setIsMobileMenuOpen(false)}>Explore</Link>
+              <Link to="/discover" style={{ color: 'white', fontSize: '32px', fontWeight: '800', textDecoration: 'none' }} onClick={() => setIsMobileMenuOpen(false)}>Discover</Link>
+              <button
+                style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '32px', fontWeight: '800', textAlign: 'left', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  if (!user) { setShowAuth(true); return; }
+                  navigate("/library");
+                }}
+              >
+                My Library {favorites.length > 0 && <span className="nav-badge" style={{ fontSize: '16px' }}>{favorites.length}</span>}
+              </button>
+              
+              <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+              
+              {user && (
+                <Link to="/profile" style={{ color: 'var(--accent-fuchsia)', fontSize: '24px', fontWeight: '700', textDecoration: 'none' }} onClick={() => setIsMobileMenuOpen(false)}>Profile Dashboard</Link>
+              )}
+              {user ? (
+                <button style={{ background: 'transparent', border: 'none', color: '#ff6b6b', fontSize: '24px', fontWeight: '700', textAlign: 'left', padding: 0, cursor: 'pointer' }} onClick={() => { setIsMobileMenuOpen(false); signOut(); }}>Sign Out</button>
+              ) : (
+                <button style={{ background: 'transparent', border: 'none', color: 'var(--accent-violet)', fontSize: '24px', fontWeight: '700', textAlign: 'left', padding: 0, cursor: 'pointer' }} onClick={() => { setIsMobileMenuOpen(false); setShowAuth(true); }}>Sign In / Register</button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isSearchOpen && (
@@ -128,25 +177,25 @@ export default function Navbar({ onSearch }) {
               initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
               onClick={e => e.stopPropagation()}
             >
-              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', padding: '24px 32px', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
-                <Search size={28} color="var(--accent-fuchsia)" />
+              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', padding: 'clamp(16px, 4vw, 24px) clamp(16px, 4vw, 32px)', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
+                <Search size={24} color="var(--accent-fuchsia)" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   placeholder="Search for movies, series..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  style={{ flex: 1, background: 'transparent', border: 'none', color: 'white', fontSize: '24px', outline: 'none', marginLeft: '20px', fontWeight: '500', fontFamily: 'var(--font-family)' }}
+                  style={{ flex: 1, background: 'transparent', border: 'none', color: 'white', fontSize: 'clamp(16px, 4vw, 24px)', outline: 'none', marginLeft: 'clamp(10px, 3vw, 20px)', fontWeight: '500', fontFamily: 'var(--font-family)', minWidth: 0 }}
                 />
-                <button type="button" onClick={() => setIsSearchOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button type="button" onClick={() => setIsSearchOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '10px' }}>
                   <kbd style={{ background: 'rgba(255,255,255,0.1)', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', fontWeight: 'bold' }}>ESC</kbd>
                 </button>
               </form>
               
               {!query ? (
-                <div style={{ padding: '32px' }}>
+                <div style={{ padding: 'clamp(16px, 4vw, 32px)' }}>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>Quick Actions</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
                     <button className="command-quick-btn" onClick={() => { setIsSearchOpen(false); navigate('/discover'); }}>
                       <div className="cq-icon" style={{ background: 'rgba(138, 43, 226, 0.2)', color: 'var(--accent-violet)' }}><Compass size={20} /></div>
                       <div style={{ textAlign: 'left' }}>

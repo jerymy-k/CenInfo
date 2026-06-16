@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AnimatePresence } from "framer-motion";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AuthModal from "./components/AuthModal";
+import SpecialWelcome from "./components/SpecialWelcome";
 
 import Home from "./pages/Home";
 import MovieDetails from "./pages/MovieDetails";
@@ -34,6 +35,12 @@ function AnimatedRoutes() {
   );
 }
 
+function WelcomeWrapper() {
+  const { showRazaneWelcome, setShowRazaneWelcome } = useAuth();
+  if (!showRazaneWelcome) return null;
+  return <SpecialWelcome onClose={() => setShowRazaneWelcome(false)} />;
+}
+
 export default function App() {
   useEffect(() => {
     // Catch OAuth errors that come back from Supabase in the URL hash
@@ -51,6 +58,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
+        <WelcomeWrapper />
         <div className="app-container">
           <Navbar />
           <main className="scrollable-area">

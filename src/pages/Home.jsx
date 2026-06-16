@@ -237,7 +237,7 @@ export default function Home() {
             {totalResults > 0 && <span> • {totalResults} total results</span>}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px, 100%), 1fr))', gap: '16px' }}>
             {results.map((movie, i) => (
               <MovieCard
                 key={movie.imdbID + i}

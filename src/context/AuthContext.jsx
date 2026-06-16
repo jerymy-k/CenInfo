@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [favorites, setFavorites] = useState([]);
   const [showAuth, setShowAuth] = useState(false);
   const [history, setHistory] = useState([]);
+  const [showRazaneWelcome, setShowRazaneWelcome] = useState(false);
   
   // Advanced Watchlists
   const [watchlists, setWatchlists] = useState({
@@ -31,11 +32,16 @@ export function AuthProvider({ children }) {
       if (session?.user) loadFavorites(session.user.id);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadFavorites(session.user.id);
         setShowAuth(false);
+        
+        // Trigger Special Welcome ONLY on actual login event (not refresh)
+        if (event === 'SIGNED_IN' && session.user.email === 'wakhidirazane@gmail.com') {
+          setShowRazaneWelcome(true);
+        }
       } else {
         setFavorites([]);
       }

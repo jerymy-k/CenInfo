@@ -5,6 +5,7 @@ import { Play, ArrowLeft, Star, Clock, Calendar, Globe, Heart, Server, MonitorPl
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { fetchMovieDetails, fetchTrailer, fetchProviders, fetchEpisodes, fetchRecommendations, fetchCast, fetchReviews, fetchTmdbMovieInfo, fetchMovieCollection } from "../services/api";
+import ReviewSection from "../components/ReviewSection";
 import ProviderBlock from "../components/ProviderBlock";
 import MovieCard from "../components/MovieCard";
 
@@ -140,25 +141,25 @@ export default function MovieDetails() {
             </motion.div>
             
             <motion.div 
-              style={{ display: 'flex', gap: '10px', marginTop: '20px' }}
+              style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}
               initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}
             >
-              <button className="btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => {
+              <button className="btn-primary" style={{ flex: '1 1 120px', justifyContent: 'center' }} onClick={() => {
                 document.getElementById('watch-player')?.scrollIntoView({ behavior: "smooth" });
               }}>
                 <Play size={20} fill="currentColor" /> Watch Now
               </button>
               {trailerUrl && (
-                <button className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setShowTrailer(true)}>
+                <button className="btn-secondary" style={{ flex: '1 1 120px', justifyContent: 'center' }} onClick={() => setShowTrailer(true)}>
                   <Film size={20} /> Trailer
                 </button>
               )}
               
               {/* WATCHLIST DROPDOWN */}
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', flex: '1 1 140px' }}>
                 <button 
                   className={`close-search-btn ${getWatchlistStatus(selected.imdbID) !== 'none' ? 'active' : ''}`}
-                  style={{ width: 'auto', padding: '0 20px', height: '54px', color: getWatchlistStatus(selected.imdbID) !== 'none' ? 'var(--accent-fuchsia)' : 'white', borderRadius: '100px', display: 'flex', gap: '8px', alignItems: 'center' }}
+                  style={{ width: '100%', padding: '0 20px', height: '54px', color: getWatchlistStatus(selected.imdbID) !== 'none' ? 'var(--accent-fuchsia)' : 'white', borderRadius: '100px', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}
                   onClick={() => setShowWatchlistMenu(!showWatchlistMenu)}
                 >
                   {getWatchlistStatus(selected.imdbID) === 'favorite' ? <Heart size={20} fill="currentColor" /> : getWatchlistStatus(selected.imdbID) === 'completed' ? <CheckCircle size={20} /> : getWatchlistStatus(selected.imdbID) === 'watching' ? <Play size={20} fill="currentColor"/> : <BookmarkPlus size={20} />}
@@ -286,9 +287,11 @@ export default function MovieDetails() {
 
       <section id="watch-player" className="watch-section">
         <div className={`watch-premium-container ${theaterMode ? 'theater-mode-active' : ''}`}>
+          
+          {/* Watch Header */}
           <div className="watch-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
-              <MonitorPlay size={28} color="var(--accent-fuchsia)" />
+            <div className="watch-header-info">
+              <MonitorPlay size={24} color="var(--accent-fuchsia)" />
               <div>
                 <h3>Now Playing: {selected.Title}</h3>
                 <p>Select a server below if the video doesn't load</p>
@@ -296,7 +299,7 @@ export default function MovieDetails() {
             </div>
             <button 
               className={`server-btn-premium ${theaterMode ? 'active' : ''}`} 
-              style={{ width: 'auto', padding: '10px 20px' }}
+              style={{ width: 'auto', padding: '10px 20px', whiteSpace: 'nowrap' }}
               onClick={() => setTheaterMode(!theaterMode)}
             >
               <Lightbulb size={18} /> {theaterMode ? 'Lights On' : 'Lights Out'}
@@ -310,9 +313,9 @@ export default function MovieDetails() {
                 <iframe
                   ref={iframeRef}
                   src={[
-                    selected.Type === "series" ? `https://vidsrc.me/embed/tv?imdb=${selected.imdbID}&season=${season}&episode=${episode}` : `https://vidsrc.me/embed/movie?imdb=${selected.imdbID}`,
                     selected.Type === "series" ? `https://vidsrc.to/embed/tv/${selected.imdbID}/${season}/${episode}` : `https://vidsrc.to/embed/movie/${selected.imdbID}`,
-                    selected.Type === "series" ? `https://www.2embed.cc/embedtv/${selected.imdbID}&s=${season}&e=${episode}` : `https://www.2embed.cc/embed/${selected.imdbID}`,
+                    selected.Type === "series" ? `https://vidsrc.me/embed/tv/${selected.imdbID}/${season}/${episode}` : `https://vidsrc.me/embed/movie?imdb=${selected.imdbID}`,
+                    selected.Type === "series" ? `https://www.2embed.cc/embedtv/${selected.imdbID}?s=${season}&e=${episode}` : `https://www.2embed.cc/embed/${selected.imdbID}`,
                     selected.Type === "series" ? `https://multiembed.mov/?video_id=${selected.imdbID}&s=${season}&e=${episode}` : `https://multiembed.mov/?video_id=${selected.imdbID}`
                   ][playerIndex]}
                   key={`${selected.imdbID}-${season}-${episode}-${playerIndex}`}
@@ -322,11 +325,25 @@ export default function MovieDetails() {
               </div>
             </div>
 
-            {/* Controls Column */}
+            {/* Controls Sidebar (desktop) / Below (mobile) */}
             <div className="watch-controls-col">
+              {/* Server Source */}
+              <div className="control-panel-section">
+                <h4 className="panel-title"><Server size={18} /> Server Source</h4>
+                <div className="server-controls-vertical">
+                  {SERVER_OPTIONS.map((name, i) => (
+                    <button key={name} className={`server-pill-btn ${playerIndex === i ? "active" : ""}`} onClick={() => setPlayerIndex(i)}>
+                      <span className="server-indicator"></span>
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Episodes - Only for series */}
               {selected.Type === "series" && (
                 <div className="control-panel-section">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <h4 className="panel-title"><ListVideo size={18} /> Episodes</h4>
                     <select className="modern-select" style={{ width: 'auto', padding: '6px 12px', fontSize: '14px' }} value={season} onChange={e => { setSeason(Number(e.target.value)); setEpisode(1); }}>
                       {[...Array(parseInt(selected.totalSeasons && selected.totalSeasons !== "N/A" ? selected.totalSeasons : 1)).keys()].map(i => (
@@ -358,20 +375,9 @@ export default function MovieDetails() {
                   </div>
                 </div>
               )}
-
-              <div className="control-panel-section">
-                <h4 className="panel-title"><Server size={18} /> Server Source</h4>
-                <div className="server-controls-vertical">
-                  {SERVER_OPTIONS.map((name, i) => (
-                    <button key={name} className={`server-btn-premium ${playerIndex === i ? "active" : ""}`} onClick={() => setPlayerIndex(i)}>
-                      <span className="server-indicator"></span>
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
+
         </div>
       </section>
 

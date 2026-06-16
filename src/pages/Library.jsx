@@ -26,10 +26,10 @@ export default function Library() {
   return (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="view-wrapper" style={{ padding: '120px 5%' }}
+      className="view-wrapper" style={{ padding: 'clamp(72px, 12vw, 120px) 5%' }}
     >
       <div style={{ marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '48px', marginBottom: '16px' }}>My Library</h1>
+        <h1 style={{ fontSize: 'clamp(32px, 7vw, 48px)', marginBottom: '16px' }}>My Library</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '18px' }}>Manage your movie collections and track your progress.</p>
       </div>
 
@@ -67,7 +67,7 @@ export default function Library() {
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px, 100%), 1fr))', gap: '16px' }}>
           {activeList.map((movie, i) => (
             <MovieCard
               key={movie.imdbID + i}

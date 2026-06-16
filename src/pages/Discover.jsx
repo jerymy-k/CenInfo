@@ -61,14 +61,14 @@ export default function Discover() {
   return (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="view-wrapper" style={{ padding: '120px 5%' }}
+      className="view-wrapper" style={{ padding: 'clamp(72px, 12vw, 120px) 5%' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '30px' }}>
         <div style={{ background: 'var(--gradient-primary)', padding: '12px', borderRadius: '16px' }}>
           <SlidersHorizontal size={32} color="white" />
         </div>
         <div>
-          <h1 style={{ fontSize: '36px', margin: 0 }}>Advanced Discover</h1>
+          <h1 style={{ fontSize: 'clamp(24px, 6vw, 36px)', margin: 0 }}>Advanced Discover</h1>
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>Find exactly what you're looking for.</p>
         </div>
       </div>
@@ -123,7 +123,7 @@ export default function Discover() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px, 100%), 1fr))', gap: '16px' }}>
         {results.map((movie, i) => (
           <MovieCard
             key={movie.imdbID + i}

@@ -327,6 +327,31 @@
 }
 
 /* --- CONTENT RAILS --- */
+.discover-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0;
+  line-height: 1;
+}
+
+@media (max-width: 768px) {
+  .discover-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .page-title {
+    font-size: 28px;
+  }
+}
+
 .content-section {
   padding: 40px 5%;
 }
@@ -361,9 +386,19 @@
   padding: 0 5% 30px 5%;
   scroll-snap-type: x mandatory;
   scrollbar-width: none; /* Firefox */
+  -webkit-overflow-scrolling: touch;
 }
 .rail-container::-webkit-scrollbar {
   display: none; /* Chrome */
+}
+
+@media (max-width: 768px) {
+  .rail-container {
+    gap: 12px;
+  }
+  .section-header h2 {
+    font-size: 24px;
+  }
 }
 
 /* --- MOVIE CARD --- */
@@ -383,8 +418,18 @@
 
 @media (max-width: 1200px) { .movie-card { flex: 0 0 calc(20% - 16px); } }
 @media (max-width: 900px) { .movie-card { flex: 0 0 calc(25% - 15px); } }
-@media (max-width: 600px) { .movie-card { flex: 0 0 calc(33.333% - 14px); } }
-@media (max-width: 400px) { .movie-card { flex: 0 0 calc(50% - 10px); } }
+@media (max-width: 600px) { 
+  .movie-card { 
+    flex: 0 0 140px; 
+    min-width: 140px; 
+  } 
+}
+@media (max-width: 400px) { 
+  .movie-card { 
+    flex: 0 0 130px; 
+    min-width: 130px; 
+  } 
+}
 
 .poster-wrapper {
   position: relative;
@@ -675,6 +720,22 @@
   flex-wrap: wrap;
 }
 
+@media (max-width: 768px) {
+  .filters-container {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .filters-container::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-btn {
+    white-space: nowrap;
+  }
+}
+
 .filter-btn {
   padding: 8px 20px;
   border-radius: 100px;
@@ -697,6 +758,7 @@
 /* Watch Player */
 .watch-section {
   padding: 0 5% 60px 5%;
+  scroll-margin-top: 100px;
 }
 
 .video-player-container {
@@ -758,7 +820,7 @@
   color: white;
 }
 
-/* Premium Watch Section Overrides */
+/* Premium Watch Section */
 .watch-premium-container {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-light);
@@ -771,22 +833,41 @@
 .watch-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-light);
 }
 
-.watch-header h3 {
-  font-size: 24px;
-  margin: 0;
-  color: white;
+.watch-header-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
 }
 
-.watch-header p {
+.watch-header-info h3 {
+  font-size: 20px;
+  margin: 0;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watch-header-info p {
   margin: 4px 0 0 0;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
+}
+
+.watch-controls-below {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 24px;
 }
 
 .watch-layout-grid {
@@ -825,50 +906,44 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: 14px;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 1px;
+  font-weight: 700;
 }
 
-.season-ep-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0;
-}
-
-.season-ep-controls .modern-select {
-  width: 100%;
-}
-
+/* Server buttons - vertical list on desktop */
 .server-controls-vertical {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.server-btn-premium {
+.server-pill-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
+  gap: 10px;
+  padding: 12px 20px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-light);
   border-radius: 12px;
   font-weight: 600;
+  font-size: 14px;
   color: var(--text-secondary);
   transition: all 0.2s ease;
+  white-space: nowrap;
+  cursor: pointer;
   width: 100%;
   text-align: left;
 }
 
-.server-btn-premium:hover {
+.server-pill-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: white;
 }
 
-.server-btn-premium.active {
+.server-pill-btn.active {
   background: var(--gradient-primary);
   color: white;
   border-color: transparent;
@@ -883,8 +958,33 @@
   transition: background 0.2s ease;
 }
 
-.server-btn-premium.active .server-indicator {
+.server-pill-btn.active .server-indicator {
   background: white;
+}
+
+/* Lights Out toggle button (reuses premium style) */
+.server-btn-premium {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+  border-radius: 100px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.server-btn-premium:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+.server-btn-premium.active {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: transparent;
 }
 
 /* --- AUTH MODAL --- */
@@ -1142,3 +1242,378 @@
   border-color: rgba(255, 255, 255, 0.15);
   box-shadow: var(--shadow-sm);
 }
+
+/* --- MOBILE / DESKTOP VISIBILITY --- */
+.desktop-only {
+  display: flex;
+}
+.mobile-header-actions {
+  display: none;
+}
+
+/* --- MOBILE RESPONSIVENESS --- */
+@media (max-width: 768px) {
+
+  /* === HEADER / NAVBAR === */
+  .main-header {
+    width: 100% !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    border-radius: 0;
+    padding: 10px 16px;
+    height: 56px;
+    gap: 0;
+    justify-content: space-between;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mobile-search-btn,
+  .mobile-menu-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  .mobile-search-btn:hover,
+  .mobile-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .header-left {
+    gap: 8px;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .logo {
+    height: 28px;
+  }
+
+  /* === GLOBAL PAGE PADDING === */
+  .view-wrapper {
+    padding: 72px 16px 40px 16px !important;
+  }
+
+  /* === CINEMATIC HERO (Home) === */
+  .cinematic-hero {
+    height: 70vh;
+    min-height: 450px;
+    padding-bottom: 60px;
+  }
+
+  .hero-content {
+    padding: 0 16px;
+  }
+
+  .hero-title {
+    font-size: clamp(32px, 8vw, 48px) !important;
+    margin-bottom: 16px;
+  }
+
+  .hero-plot {
+    font-size: 15px;
+    margin-bottom: 24px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .hero-actions {
+    gap: 12px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 12px 20px;
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  /* === DISCOVER HEADER & FILTERS === */
+  .discover-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  /* === CONTENT RAILS === */
+  .content-section {
+    padding: 24px 16px;
+  }
+
+  .rail-container {
+    gap: 12px;
+    margin: 0 -16px;
+    padding: 0 16px 20px 16px;
+  }
+
+  .section-header h2 {
+    font-size: 22px;
+  }
+
+  .section-header p {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+  }
+
+  /* === MOVIE DETAILS PAGE === */
+  .details-hero {
+    min-height: auto;
+    padding: 72px 16px 40px 16px;
+  }
+
+  .details-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .sidebar-poster-wrap {
+    position: relative;
+    top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .details-poster {
+    max-width: 220px;
+    border-radius: 16px;
+  }
+
+  .main-info h1 {
+    font-size: clamp(28px, 7vw, 40px);
+    text-align: left;
+  }
+
+  .meta-row {
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .meta-pill {
+    padding: 4px 12px;
+    font-size: 12px;
+  }
+
+  .hero-badge {
+    padding: 3px 10px;
+    font-size: 11px;
+  }
+
+  .plot-text {
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+
+  /* Cast */
+  .cast-img {
+    width: 80px;
+    height: 80px;
+  }
+
+  .cast-card {
+    min-width: 80px;
+  }
+
+  .cast-name {
+    font-size: 12px;
+  }
+
+  .cast-role {
+    font-size: 11px;
+  }
+
+  /* === WATCH PLAYER SECTION === */
+  .watch-section {
+    padding: 0 16px 40px 16px;
+  }
+
+  .watch-premium-container {
+    padding: 16px;
+    border-radius: 16px;
+    margin-top: 24px;
+  }
+
+  .watch-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+  }
+
+  .watch-header-info {
+    gap: 12px;
+  }
+
+  .watch-header-info h3 {
+    font-size: 16px;
+    white-space: normal;
+  }
+
+  .watch-header-info p {
+    font-size: 12px;
+  }
+
+  .watch-layout-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .video-player-container {
+    border-radius: 12px;
+  }
+
+  .watch-controls-col {
+    background: transparent;
+    border: none;
+    padding: 0;
+    gap: 20px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .control-panel-section {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .server-controls-vertical {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+  .server-controls-vertical::-webkit-scrollbar {
+    display: none;
+  }
+
+  .server-pill-btn {
+    border-radius: 100px;
+    padding: 10px 16px;
+    font-size: 13px;
+    gap: 8px;
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-size: 12px;
+  }
+
+  .episodes-scroll-list {
+    max-height: 200px;
+  }
+
+  .episode-card-btn {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .ep-num {
+    font-size: 16px;
+    min-width: 24px;
+  }
+
+  .ep-title {
+    font-size: 13px;
+  }
+
+  /* === REVIEWS === */
+  .reviews-masonry {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .review-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  /* === FOOTER === */
+  .simple-footer {
+    padding: 40px 16px;
+  }
+
+  .simple-footer-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .simple-footer-contact {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .simple-footer-bottom {
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  /* === AUTH MODAL === */
+  .modal-content {
+    padding: 28px 20px;
+    border-radius: 20px;
+    max-width: 100%;
+  }
+
+  .modal-intro h2 {
+    font-size: 22px;
+  }
+
+  /* === PROFILE PAGE === */
+  .profile-sidebar {
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* === THEATER MODE === */
+  .theater-mode-active {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+  }
+
+  /* === COMMAND PALETTE (Search Modal) === */
+  .command-quick-btn {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .cq-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+}
+

@@ -40,13 +40,13 @@ export default function ProfilePage() {
   return (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="view-wrapper" style={{ padding: '120px 5%' }}
+      className="view-wrapper" style={{ padding: 'clamp(72px, 12vw, 120px) 5%' }}
     >
       <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
         
         {/* Sidebar / Identity */}
-        <div style={{ flex: '0 0 300px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-light)', borderRadius: '24px', padding: '30px', textAlign: 'center' }}>
-          <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: 'var(--gradient-primary)', margin: '0 auto 20px', padding: '4px' }}>
+        <div className="profile-sidebar" style={{ flex: '0 0 280px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-light)', borderRadius: '24px', padding: 'clamp(20px, 4vw, 30px)', textAlign: 'center' }}>
+          <div style={{ width: 'clamp(100px, 30vw, 150px)', height: 'clamp(100px, 30vw, 150px)', borderRadius: '50%', background: 'var(--gradient-primary)', margin: '0 auto 20px', padding: '4px' }}>
             <img 
               src={profile.avatar} 
               alt="Avatar" 
@@ -91,25 +91,25 @@ export default function ProfilePage() {
 
         {/* Dashboard Stats */}
         <div style={{ flex: 1, minWidth: '300px' }}>
-          <h2 style={{ fontSize: '32px', marginBottom: '30px' }}>Your Cinematic Journey</h2>
+          <h2 style={{ fontSize: 'clamp(24px, 5vw, 32px)', marginBottom: '24px' }}>Your Cinematic Journey</h2>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '40px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '16px', marginBottom: '32px' }}>
             
             <div style={{ background: 'rgba(240, 40, 122, 0.1)', border: '1px solid rgba(240, 40, 122, 0.3)', borderRadius: '24px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <Heart size={32} color="var(--accent-fuchsia)" />
-              <span style={{ fontSize: '48px', fontWeight: '800' }}>{favorites.length}</span>
+              <span style={{ fontSize: 'clamp(32px, 8vw, 48px)', fontWeight: '800' }}>{favorites.length}</span>
               <span style={{ color: 'var(--text-secondary)' }}>Total Favorites</span>
             </div>
 
             <div style={{ background: 'rgba(138, 43, 226, 0.1)', border: '1px solid rgba(138, 43, 226, 0.3)', borderRadius: '24px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <CheckCircle size={32} color="var(--accent-violet)" />
-              <span style={{ fontSize: '48px', fontWeight: '800' }}>{totalWatched}</span>
+              <span style={{ fontSize: 'clamp(32px, 8vw, 48px)', fontWeight: '800' }}>{totalWatched}</span>
               <span style={{ color: 'var(--text-secondary)' }}>Titles Watched</span>
             </div>
 
             <div style={{ background: 'rgba(255, 179, 71, 0.1)', border: '1px solid rgba(255, 179, 71, 0.3)', borderRadius: '24px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <Clock size={32} color="var(--accent-amber)" />
-              <span style={{ fontSize: '48px', fontWeight: '800' }}>{watchlists.planToWatch.length}</span>
+              <span style={{ fontSize: 'clamp(32px, 8vw, 48px)', fontWeight: '800' }}>{watchlists.planToWatch.length}</span>
               <span style={{ color: 'var(--text-secondary)' }}>Plan to Watch</span>
             </div>
 
