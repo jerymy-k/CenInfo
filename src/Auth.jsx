@@ -40,9 +40,14 @@ export default function Auth() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin }
+        options: { 
+          redirectTo: window.location.origin
+        }
       });
-      if (error) setError(error.message);
+      
+      if (error) {
+        setError(error.message);
+      }
     } catch (err) {
       setError(err.message || "Failed to initialize Google Login.");
     } finally {

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -34,6 +35,19 @@ function AnimatedRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    // Catch OAuth errors that come back from Supabase in the URL hash
+    if (window.location.hash && window.location.hash.includes('error=')) {
+      const params = new URLSearchParams(window.location.hash.substring(1));
+      const errDesc = params.get('error_description');
+      if (errDesc) {
+        alert("Supabase Login Error: " + errDesc.replace(/\+/g, ' '));
+      }
+      // Clear the hash so the alert doesn't keep showing on normal refresh
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <ThemeProvider>
