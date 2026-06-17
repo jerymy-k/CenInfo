@@ -13,8 +13,10 @@ import Home from "./pages/Home";
 import MovieDetails from "./pages/MovieDetails";
 import Library from "./pages/Library";
 import ProfilePage from "./pages/ProfilePage";
+import PublicProfile from "./pages/PublicProfile";
 import ActorProfile from "./pages/ActorProfile";
 import Discover from "./pages/Discover";
+import SharedList from "./pages/SharedList";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import "./App.css";
@@ -39,6 +41,8 @@ function AnimatedRoutes() {
             <ProfilePage />
           </ProtectedRoute>
         } />
+        <Route path="/list/:userId/:listName" element={<SharedList />} />
+        <Route path="/user/:userId" element={<PublicProfile />} />
       </Routes>
     </AnimatePresence>
   );

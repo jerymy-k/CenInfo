@@ -3,7 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Play, Search as SearchIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { fetchHomeCategories, fetchFilteredCategory, searchMovies } from "../services/api";
+import { fetchHomeCategories, fetchFilteredCategory, searchMovies, fetchUpcomingMovies, fetchRecommendationsByMovieId } from "../services/api";
 import MovieCard from "../components/MovieCard";
 
 const FILTERS = [
@@ -28,7 +28,7 @@ export default function Home() {
   const [loadingHome, setLoadingHome] = useState(false);
 
   const railRefs = useRef({});
-  const { toggleFavorite, isFavorite, history } = useAuth();
+  const { toggleFavorite, isFavorite, history, favorites } = useAuth();
 
   useEffect(() => {
     if (query.trim()) {
@@ -42,6 +42,20 @@ export default function Home() {
   async function loadHomeMovies() {
     setLoadingHome(true);
     const data = await fetchHomeCategories();
+    
+    const upcoming = await fetchUpcomingMovies();
+    if (upcoming) data.upcoming = upcoming;
+
+    if (favorites?.length > 0) {
+      const fav = favorites[favorites.length - 1];
+      if (fav.imdbID.startsWith('tmdb-')) {
+        const isTv = fav.imdbID.includes('-tv-');
+        const tmdbId = fav.imdbID.replace(/tmdb-(tv|movie)-/, '');
+        const recommendations = await fetchRecommendationsByMovieId(tmdbId, isTv ? "tv" : "movie");
+        if (recommendations) data.forYou = recommendations;
+      }
+    }
+
     setCategories(data);
     setLoadingHome(false);
   }

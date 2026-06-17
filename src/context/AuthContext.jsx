@@ -5,6 +5,7 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
   const [showAuth, setShowAuth] = useState(false);
   const [history, setHistory] = useState([]);
@@ -21,6 +22,7 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) loadUserData(session.user.id);
+      setIsLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -28,11 +30,28 @@ export function AuthProvider({ children }) {
       if (session?.user) {
         loadUserData(session.user.id);
         setShowAuth(false);
-        if (event === 'SIGNED_IN' && session.user.email === 'wakhidirazane@gmail.com') {
-          setShowRazaneWelcome(true);
+        
+        if (event === 'SIGNED_IN') {
+          // Auto-create profile if missing so their name appears in community discussions
+          supabase.from("profiles").select("id").eq("id", session.user.id).single().then(({ data }) => {
+            if (!data) {
+              supabase.from("profiles").insert({
+                id: session.user.id,
+                username: session.user.email.split('@')[0],
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`
+              }).then();
+            }
+          });
+
+          // Special Welcome logic
+          if (session.user.email === 'wakhidirazane@gmail.com' && !localStorage.getItem('razane_welcomed')) {
+            setShowRazaneWelcome(true);
+            localStorage.setItem('razane_welcomed', 'true');
+          }
         }
       } else {
         setFavorites([]);
+        localStorage.removeItem('razane_welcomed');
       }
     });
 
@@ -61,9 +80,10 @@ export function AuthProvider({ children }) {
     if (lists) {
       const newWatchlists = { planToWatch: [], watching: [], completed: [] };
       lists.forEach(row => {
-        if (newWatchlists[row.list_type]) {
-          newWatchlists[row.list_type].push(row.movie_data);
+        if (!newWatchlists[row.list_type]) {
+          newWatchlists[row.list_type] = [];
         }
+        newWatchlists[row.list_type].push(row.movie_data);
       });
       setWatchlists(newWatchlists);
     }
@@ -160,6 +180,26 @@ export function AuthProvider({ children }) {
     return "none";
   }
 
+  function createList(listName) {
+    if (!listName.trim()) return;
+    setWatchlists(prev => {
+      if (prev[listName]) return prev;
+      return { ...prev, [listName]: [] };
+    });
+  }
+
+  async function deleteList(listName) {
+    if (['planToWatch', 'watching', 'completed'].includes(listName)) return;
+    setWatchlists(prev => {
+      const next = { ...prev };
+      delete next[listName];
+      return next;
+    });
+    if (user) {
+      await supabase.from("watchlists").delete().eq("user_id", user.id).eq("list_type", listName);
+    }
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -178,8 +218,11 @@ export function AuthProvider({ children }) {
       watchlists,
       updateWatchlist,
       getWatchlistStatus,
+      createList,
+      deleteList,
       showRazaneWelcome,
-      setShowRazaneWelcome
+      setShowRazaneWelcome,
+      isLoading
     }}>
       {children}
     </AuthContext.Provider>

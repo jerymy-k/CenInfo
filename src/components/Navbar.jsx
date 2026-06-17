@@ -1,10 +1,11 @@
 import { useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Compass, BookmarkPlus, PlayCircle, Film, Star, Menu } from "lucide-react";
+import { Search, X, Compass, BookmarkPlus, PlayCircle, Film, Star, Menu, User, LogOut, LayoutDashboard, Bell, Check } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { fetchLiveSearch } from "../services/api";
+import { supabase } from "../supabase";
 import logo from "../assets/CenInfoLogo.png";
 
 export default function Navbar({ onSearch }) {
@@ -20,6 +21,51 @@ export default function Navbar({ onSearch }) {
   const [liveResults, setLiveResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [activePreview, setActivePreview] = useState(null);
+  
+  // Friend Requests State
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const [isRequestsOpen, setIsRequestsOpen] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadIncomingRequests();
+      // Optional: Set up real-time subscription here
+    } else {
+      setIncomingRequests([]);
+    }
+  }, [user]);
+
+  async function loadIncomingRequests() {
+    // Rely entirely on manual fetch to avoid PostgREST foreign key schema cache errors
+    const { data: rawRequests, error } = await supabase.from('friendships').select('*').eq('receiver_id', user.id).eq('status', 'pending');
+    
+    if (error) {
+      console.error("Error fetching incoming requests:", error);
+      return;
+    }
+    
+    if (rawRequests && rawRequests.length > 0) {
+      const requesterIds = rawRequests.map(r => r.requester_id);
+      const { data: profiles } = await supabase.from('profiles').select('*').in('id', requesterIds);
+      
+      const enriched = rawRequests.map(req => ({
+        ...req,
+        profile: profiles?.find(p => p.id === req.requester_id) || { username: 'Someone', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.requester_id}` }
+      }));
+      setIncomingRequests(enriched);
+    } else {
+      setIncomingRequests([]);
+    }
+  }
+
+  async function handleRequest(requestId, action) {
+    if (action === 'accept') {
+      await supabase.from('friendships').update({ status: 'accepted' }).eq('id', requestId);
+    } else {
+      await supabase.from('friendships').delete().eq('id', requestId);
+    }
+    setIncomingRequests(prev => prev.filter(r => r.id !== requestId));
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -103,7 +149,55 @@ export default function Navbar({ onSearch }) {
           <span>Search movies, series...</span>
         </button>
 
-        <div className="header-right desktop-only">
+        <div className="header-right desktop-only" style={{ position: 'relative' }}>
+          {user && (
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setIsRequestsOpen(!isRequestsOpen)}
+                style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+              >
+                <Bell size={20} />
+                {incomingRequests.length > 0 && (
+                  <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: 'var(--accent-fuchsia)', color: 'white', fontSize: '10px', fontWeight: 'bold', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {incomingRequests.length}
+                  </span>
+                )}
+              </button>
+              
+              {/* Notifications Dropdown */}
+              <AnimatePresence>
+                {isRequestsOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                    style={{ position: 'absolute', top: '120%', right: 0, width: '300px', background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', border: 'var(--glass-border)', borderRadius: '16px', padding: '16px', boxShadow: 'var(--shadow-lg)', zIndex: 1000 }}
+                  >
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>Friend Requests</h4>
+                    {incomingRequests.length === 0 ? (
+                      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px' }}>No pending requests.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {incomingRequests.map(req => (
+                          <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.3)', padding: '8px', borderRadius: '12px' }}>
+                            <Link to={`/user/${req.profile.id}`} style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit', flex: 1, overflow: 'hidden' }}>
+                              <img src={req.profile.avatar} alt="avatar" style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
+                              <div style={{ flex: 1, overflow: 'hidden' }}>
+                                <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{req.profile.username}</p>
+                              </div>
+                            </Link>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button onClick={() => handleRequest(req.id, 'accept')} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-fuchsia)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} /></button>
+                              <button onClick={() => handleRequest(req.id, 'decline')} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+        
           {user && (
             <Link to="/profile" className="auth-btn login">
               Profile
@@ -130,37 +224,75 @@ export default function Navbar({ onSearch }) {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            style={{ position: 'fixed', inset: 0, background: 'rgba(10, 0, 20, 0.95)', backdropFilter: 'blur(20px)', zIndex: 4000, display: 'flex', flexDirection: 'column', padding: '100px 30px' }}
-            initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 4000, display: 'flex', justifyContent: 'flex-end' }}
           >
-            <button style={{ position: 'absolute', top: '30px', right: '30px', background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setIsMobileMenuOpen(false)}>
-              <X size={32} />
-            </button>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
-              <Link to="/" style={{ color: 'white', fontSize: '32px', fontWeight: '800', textDecoration: 'none' }} onClick={() => setIsMobileMenuOpen(false)}>Explore</Link>
-              <Link to="/discover" style={{ color: 'white', fontSize: '32px', fontWeight: '800', textDecoration: 'none' }} onClick={() => setIsMobileMenuOpen(false)}>Discover</Link>
-              <button
-                style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '32px', fontWeight: '800', textAlign: 'left', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  if (!user) { setShowAuth(true); return; }
-                  navigate("/library");
-                }}
-              >
-                My Library {favorites.length > 0 && <span className="nav-badge" style={{ fontSize: '16px' }}>{favorites.length}</span>}
+            {/* Backdrop */}
+            <motion.div
+              style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.6)' }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            {/* Drawer */}
+            <motion.div
+              style={{ position: 'relative', width: '80%', maxWidth: '360px', height: '100%', background: 'rgba(10, 0, 20, 0.85)', backdropFilter: 'blur(30px)', borderLeft: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', padding: '40px 24px', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)' }}
+              initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            >
+              <button style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px', borderRadius: '50%' }} onClick={() => setIsMobileMenuOpen(false)}>
+                <X size={28} />
               </button>
-              
-              <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-              
+
               {user && (
-                <Link to="/profile" style={{ color: 'var(--accent-fuchsia)', fontSize: '24px', fontWeight: '700', textDecoration: 'none' }} onClick={() => setIsMobileMenuOpen(false)}>Profile Dashboard</Link>
+                <div style={{ marginBottom: '40px', paddingBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <User size={24} color="white" />
+                    </div>
+                    <div style={{ overflow: 'hidden' }}>
+                      <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>Signed in as</p>
+                      <p style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.email}</p>
+                    </div>
+                  </div>
+                </div>
               )}
-              {user ? (
-                <button style={{ background: 'transparent', border: 'none', color: '#ff6b6b', fontSize: '24px', fontWeight: '700', textAlign: 'left', padding: 0, cursor: 'pointer' }} onClick={() => { setIsMobileMenuOpen(false); signOut(); }}>Sign Out</button>
-              ) : (
-                <button style={{ background: 'transparent', border: 'none', color: 'var(--accent-violet)', fontSize: '24px', fontWeight: '700', textAlign: 'left', padding: 0, cursor: 'pointer' }} onClick={() => { setIsMobileMenuOpen(false); setShowAuth(true); }}>Sign In / Register</button>
-              )}
-            </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, marginTop: user ? '0' : '60px' }}>
+                <Link to="/" style={{ color: 'white', fontSize: '22px', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '16px' }} onClick={() => setIsMobileMenuOpen(false)}>
+                  <Compass size={24} color="var(--accent-fuchsia)" /> Explore
+                </Link>
+                <Link to="/discover" style={{ color: 'white', fontSize: '22px', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '16px' }} onClick={() => setIsMobileMenuOpen(false)}>
+                  <Search size={24} color="var(--accent-violet)" /> Discover
+                </Link>
+                <button
+                  style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '22px', fontWeight: '700', textAlign: 'left', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px' }}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    if (!user) { setShowAuth(true); return; }
+                    navigate("/library");
+                  }}
+                >
+                  <BookmarkPlus size={24} color="var(--accent-fuchsia)" /> My Library 
+                  {favorites.length > 0 && <span className="nav-badge" style={{ fontSize: '14px', position: 'relative', top: 0, right: 0 }}>{favorites.length}</span>}
+                </button>
+                
+                {user && (
+                  <Link to="/profile" style={{ color: 'white', fontSize: '22px', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '16px' }} onClick={() => setIsMobileMenuOpen(false)}>
+                    <LayoutDashboard size={24} color="var(--accent-violet)" /> Dashboard
+                  </Link>
+                )}
+              </div>
+
+              <div style={{ paddingBottom: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                {user ? (
+                  <button style={{ background: 'transparent', border: 'none', color: '#ff6b6b', fontSize: '18px', fontWeight: '600', textAlign: 'left', padding: '12px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }} onClick={() => { setIsMobileMenuOpen(false); signOut(); }}>
+                    <LogOut size={20} /> Sign Out
+                  </button>
+                ) : (
+                  <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => { setIsMobileMenuOpen(false); setShowAuth(true); }}>
+                    Sign In / Register
+                  </button>
+                )}
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

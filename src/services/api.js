@@ -68,6 +68,47 @@ export async function fetchFilteredCategory(newType) {
   return null;
 }
 
+export async function fetchUpcomingMovies() {
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/movie/upcoming?api_key=${TMDB_KEY}&language=en-US&page=1`);
+    const data = await res.json();
+    if (data.results?.length) {
+      return {
+        label: "Coming Soon",
+        movies: data.results.map(m => ({
+          imdbID: `tmdb-movie-${m.id}`,
+          Title: m.title || m.name,
+          Year: (m.release_date || m.first_air_date || "").split("-")[0] || "N/A",
+          Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
+          Type: "movie",
+        }))
+      };
+    }
+  } catch (e) { console.error(e); }
+  return null;
+}
+
+export async function fetchRecommendationsByMovieId(tmdbId, mediaType = "movie") {
+  if (!tmdbId) return null;
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}/recommendations?api_key=${TMDB_KEY}`);
+    const data = await res.json();
+    if (data.results?.length) {
+      return {
+        label: "For You",
+        movies: data.results.slice(0, 10).map(m => ({
+          imdbID: `tmdb-${mediaType}-${m.id}`,
+          Title: m.title || m.name,
+          Year: (m.release_date || m.first_air_date || "").split("-")[0] || "N/A",
+          Poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://via.placeholder.com/300x450?text=No+Poster",
+          Type: mediaType,
+        }))
+      };
+    }
+  } catch (e) { console.error(e); }
+  return null;
+}
+
 export async function searchMovies(query, type, page = 1, year = "") {
   if (!query.trim()) return { results: [], totalResults: 0, error: "" };
   

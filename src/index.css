@@ -132,3 +132,36 @@ button {
   box-shadow: var(--shadow-md);
   border-radius: 24px;
 }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--accent-fuchsia);
+  border-radius: 10px;
+  box-shadow: 0 0 10px var(--accent-fuchsia);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-violet);
+}
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: var(--accent-fuchsia);
+}
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-fuchsia);
+}

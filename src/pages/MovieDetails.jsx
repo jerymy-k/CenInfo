@@ -10,7 +10,7 @@ import ProviderBlock from "../components/ProviderBlock";
 import MovieCard from "../components/MovieCard";
 import { supabase } from "../supabase";
 
-const SERVER_OPTIONS = ["Server Alpha", "Server Beta", "Server Gamma", "Server Delta"];
+const SERVER_OPTIONS = ["VidSrc", "Embed.su", "VidSrc.cc", "VidSrc.net", "VidLink", "MultiEmbed"];
 
 export default function MovieDetails() {
   const { imdbID } = useParams();
@@ -27,6 +27,11 @@ export default function MovieDetails() {
   const [reviews, setReviews] = useState([]);
   const [collection, setCollection] = useState(null);
   const [tmdbIdState, setTmdbIdState] = useState(null);
+  const [communityReviews, setCommunityReviews] = useState([]);
+  const [newReviewText, setNewReviewText] = useState("");
+  const [newReviewRating, setNewReviewRating] = useState(10);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyText, setReplyText] = useState("");
   
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
@@ -129,7 +134,33 @@ export default function MovieDetails() {
           }
         });
       }
-      
+
+      supabase.from("user_reviews").select("*").eq("imdb_id", imdbID).order("created_at", { ascending: false }).then(async ({data, error}) => {
+        if (error) {
+          console.error("Error fetching community reviews:", error);
+          return;
+        }
+        if (data && data.length > 0) {
+          // Manually fetch profiles since there may not be an explicit foreign key set up yet
+          const userIds = [...new Set(data.map(r => r.user_id))];
+          const { data: profiles } = await supabase.from("profiles").select("id, username, avatar").in("id", userIds);
+          
+          const profileMap = {};
+          if (profiles) {
+            profiles.forEach(p => profileMap[p.id] = p);
+          }
+
+          const enrichedReviews = data.map(r => ({
+            ...r,
+            profiles: profileMap[r.user_id] || { username: 'CenInfo Member', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.user_id}` }
+          }));
+
+          setCommunityReviews(enrichedReviews);
+        } else {
+          setCommunityReviews([]);
+        }
+      });
+
       setLoading(false);
     }
     
@@ -162,6 +193,53 @@ export default function MovieDetails() {
     else document.body.style.overflow = 'auto';
     return () => { document.body.style.overflow = 'auto'; };
   }, [theaterMode]);
+
+  const handleEpisodeChange = (e) => {
+    setEpisode(e.target.value);
+    setPlayerIndex(0);
+  };
+
+  const submitReview = async (e, parentId = null) => {
+    e.preventDefault();
+    if (!user) { setShowAuth(true); return; }
+    
+    const text = parentId ? replyText : newReviewText;
+    if (!text.trim()) return;
+
+    const review = {
+      user_id: user.id,
+      imdb_id: imdbID,
+      rating: parentId ? null : newReviewRating, // Replies don't need ratings
+      content: text,
+      parent_id: parentId
+    };
+
+    // Need to get the profile info to inject it immediately into the state
+    const { data: profile } = await supabase.from("profiles").select("username, avatar").eq("id", user.id).single();
+
+    const { data, error } = await supabase.from("user_reviews").insert(review).select();
+    if (error) {
+      console.error("Error submitting review:", error);
+      alert("Failed to submit review: " + error.message);
+    } else if (data) {
+      const insertedReview = { ...data[0], profiles: profile || { username: user.email.split('@')[0], avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.id } };
+      setCommunityReviews(prev => [insertedReview, ...prev]);
+      if (parentId) {
+        setReplyText("");
+        setReplyingTo(null);
+      } else {
+        setNewReviewText("");
+      }
+    }
+  };
+
+  const deleteReview = async (reviewId) => {
+    if (!user) return;
+    const { error } = await supabase.from("user_reviews").delete().eq("id", reviewId).eq("user_id", user.id);
+    if (!error) {
+      setCommunityReviews(prev => prev.filter(r => r.id !== reviewId && r.parent_id !== reviewId));
+    }
+  };
 
   if (loading) return <div style={{ height: '100vh', background: 'var(--bg-base)' }}></div>;
 
@@ -374,10 +452,12 @@ export default function MovieDetails() {
                 <iframe
                   ref={iframeRef}
                   src={[
-                    selected.Type === "series" ? `https://vidsrc.to/embed/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidsrc.to/embed/movie/${tmdbIdState || selected.imdbID}`,
-                    selected.Type === "series" ? `https://vidsrc.pm/embed/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidsrc.pm/embed/movie/${tmdbIdState || selected.imdbID}`,
-                    selected.Type === "series" ? `https://anyembed.xyz/embed/imdb-tv-${selected.imdbID}-${season}-${episode}` : `https://anyembed.xyz/embed/imdb-movie-${selected.imdbID}`,
-                    selected.Type === "series" ? `https://vidsrc.in/embed/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidsrc.in/embed/movie/${tmdbIdState || selected.imdbID}`
+                    selected.Type === "series" ? `https://vidsrc.me/embed/tv?tmdb=${tmdbIdState || selected.imdbID}&season=${season}&episode=${episode}` : `https://vidsrc.me/embed/movie?tmdb=${tmdbIdState || selected.imdbID}`,
+                    selected.Type === "series" ? `https://embed.su/embed/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://embed.su/embed/movie/${tmdbIdState || selected.imdbID}`,
+                    selected.Type === "series" ? `https://vidsrc.cc/v2/embed/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidsrc.cc/v2/embed/movie/${tmdbIdState || selected.imdbID}`,
+                    selected.Type === "series" ? `https://vidsrc.net/embed/tv?tmdb=${tmdbIdState || selected.imdbID}&season=${season}&episode=${episode}` : `https://vidsrc.net/embed/movie?tmdb=${tmdbIdState || selected.imdbID}`,
+                    selected.Type === "series" ? `https://vidlink.pro/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidlink.pro/movie/${tmdbIdState || selected.imdbID}`,
+                    selected.Type === "series" ? `https://multiembed.mov/directstream.php?video_id=${tmdbIdState || selected.imdbID}&tmdb=1&s=${season}&e=${episode}` : `https://multiembed.mov/directstream.php?video_id=${tmdbIdState || selected.imdbID}&tmdb=1`
                   ][playerIndex]}
                   key={`${selected.imdbID}-${season}-${episode}-${playerIndex}`}
                   title={`${selected.Title} player`}
@@ -455,36 +535,135 @@ export default function MovieDetails() {
         </div>
       </section>
 
-      {reviews.length > 0 && (
-        <section className="watch-section">
-          <h3 style={{ marginBottom: '30px', fontSize: '28px' }}>Community Reviews</h3>
-          <div className="reviews-masonry">
-            {reviews.map((rev) => (
-              <div key={rev.id} className="review-card">
-                <div className="review-header">
-                  <div className="review-avatar">
-                    {rev.author_details?.avatar_path ? (
-                      <img src={rev.author_details.avatar_path.startsWith('/') ? `https://image.tmdb.org/t/p/w45${rev.author_details.avatar_path}` : rev.author_details.avatar_path.slice(1)} alt={rev.author} />
-                    ) : (
-                      <User size={20} />
+      {/* CENINFO REVIEWS & TMDB REVIEWS */}
+      <section className="watch-section">
+        <h3 style={{ marginBottom: '30px', fontSize: '28px' }}>Community Discussions</h3>
+        
+        <div style={{ marginBottom: '40px', background: 'rgba(255,255,255,0.02)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
+          <h4 style={{ marginBottom: '16px' }}>Leave a Review</h4>
+          <form onSubmit={(e) => submitReview(e, null)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <textarea 
+              value={newReviewText}
+              onChange={(e) => setNewReviewText(e.target.value)}
+              placeholder={user ? "What did you think of it?" : "Sign in to leave a review"}
+              disabled={!user}
+              style={{ width: '100%', minHeight: '100px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-light)', borderRadius: '8px', padding: '12px', color: 'white', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Rating:</span>
+                <input 
+                  type="number" min="1" max="10" 
+                  value={newReviewRating} onChange={e => setNewReviewRating(Number(e.target.value))}
+                  disabled={!user}
+                  style={{ width: '60px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-light)', borderRadius: '4px', padding: '4px 8px', color: 'white' }}
+                />
+                <span style={{ color: 'var(--text-muted)' }}>/ 10</span>
+              </div>
+              <button type="submit" disabled={!user || !newReviewText.trim()} className="btn-primary" style={{ padding: '8px 24px' }}>
+                {user ? "Post Review" : "Sign in to Post"}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '500px', overflowY: 'auto', paddingRight: '12px', scrollbarWidth: 'thin' }}>
+          {communityReviews.filter(r => !r.parent_id).map((rev) => (
+            <div key={rev.id} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="review-card" style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', margin: 0 }}>
+                <div className="review-header" style={{ justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <Link to={`/user/${rev.user_id}`} className="review-avatar" style={{ border: 'none', cursor: 'pointer', overflow: 'hidden' }}>
+                      <img src={rev.profiles?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rev.user_id}`} alt="avatar" style={{ width: '100%', height: '100%' }} />
+                    </Link>
+                    <div>
+                      <Link to={`/user/${rev.user_id}`} style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: 'white', textDecoration: 'none' }}>{rev.profiles?.username || 'CenInfo Member'}</Link>
+                      <div style={{ fontSize: '12px', color: 'var(--accent-fuchsia)' }}>
+                        <Star size={12} fill="currentColor" style={{ verticalAlign: 'middle', marginRight: 4 }}/>
+                        {rev.rating} / 10
+                      </div>
+                    </div>
+                  </div>
+                  {user && user.id === rev.user_id && (
+                    <button onClick={() => deleteReview(rev.id)} style={{ background: 'transparent', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
+                  )}
+                </div>
+                <div className="review-content" style={{ marginTop: '8px' }}>
+                  <p style={{ margin: 0, fontSize: '15px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>{rev.content}</p>
+                </div>
+                <div style={{ marginTop: '12px' }}>
+                  <button onClick={() => setReplyingTo(replyingTo === rev.id ? null : rev.id)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
+                    {replyingTo === rev.id ? 'Cancel Reply' : 'Reply'}
+                  </button>
+                </div>
+                
+                {replyingTo === rev.id && (
+                  <form onSubmit={(e) => submitReview(e, rev.id)} style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                    <input 
+                      autoFocus
+                      type="text" 
+                      value={replyText} 
+                      onChange={e => setReplyText(e.target.value)} 
+                      placeholder="Write a reply..." 
+                      style={{ flex: 1, padding: '10px 16px', borderRadius: '100px', border: '1px solid var(--border-light)', background: 'rgba(0,0,0,0.3)', color: 'white' }}
+                    />
+                    <button type="submit" disabled={!replyText.trim()} className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '100px' }}>Send</button>
+                  </form>
+                )}
+              </div>
+
+              {/* REPLIES */}
+              {communityReviews.filter(reply => reply.parent_id === rev.id).map(reply => (
+                <div key={reply.id} style={{ marginLeft: '40px', padding: '16px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <Link to={`/user/${reply.user_id}`} style={{ width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden' }}>
+                        <img src={reply.profiles?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${reply.user_id}`} alt="avatar" style={{ width: '100%', height: '100%' }} />
+                      </Link>
+                      <Link to={`/user/${reply.user_id}`} style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: 'white', textDecoration: 'none' }}>{reply.profiles?.username || 'CenInfo Member'}</Link>
+                    </div>
+                    {user && user.id === reply.user_id && (
+                      <button onClick={() => deleteReview(reply.id)} style={{ background: 'transparent', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
                     )}
                   </div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '16px' }}>{rev.author}</h4>
-                    <span style={{ fontSize: '12px', color: 'var(--accent-fuchsia)' }}>
-                      <Star size={12} fill="currentColor" style={{ verticalAlign: 'middle', marginRight: 4 }}/>
-                      {rev.author_details?.rating ? `${rev.author_details.rating} / 10` : 'NR'}
-                    </span>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>{reply.content}</p>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {reviews.length > 0 && (
+          <div style={{ marginTop: '40px' }}>
+            <h4 style={{ marginBottom: '20px', color: 'var(--text-muted)' }}>TMDB Reviews</h4>
+            <div className="reviews-masonry">
+              {reviews.map((rev) => (
+                <div key={rev.id} className="review-card">
+                  <div className="review-header">
+                    <div className="review-avatar">
+                      {rev.author_details?.avatar_path ? (
+                        <img src={rev.author_details.avatar_path.startsWith('/') ? `https://image.tmdb.org/t/p/w45${rev.author_details.avatar_path}` : rev.author_details.avatar_path.slice(1)} alt={rev.author} />
+                      ) : (
+                        <User size={20} />
+                      )}
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '16px' }}>{rev.author}</h4>
+                      <span style={{ fontSize: '12px', color: 'var(--accent-fuchsia)' }}>
+                        <Star size={12} fill="currentColor" style={{ verticalAlign: 'middle', marginRight: 4 }}/>
+                        {rev.author_details?.rating ? `${rev.author_details.rating} / 10` : 'NR'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="review-content">
+                    <p>{rev.content.length > 300 ? rev.content.slice(0, 300) + "..." : rev.content}</p>
                   </div>
                 </div>
-                <div className="review-content">
-                  <p>{rev.content.length > 300 ? rev.content.slice(0, 300) + "..." : rev.content}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* SMART TRAILER MODAL */}
       <AnimatePresence>

@@ -3,22 +3,37 @@ import { motion } from "framer-motion";
 import { Heart, Clock, Play, CheckCircle, Search, BookmarkPlus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import MovieCard from "../components/MovieCard";
+import { supabase } from "../supabase";
 
 export default function Library() {
-  const { favorites, watchlists, toggleFavorite, isFavorite } = useAuth();
+  const { favorites, watchlists, toggleFavorite, isFavorite, createList, deleteList, user } = useAuth();
   
   const tabs = [
     { id: 'favorite', label: 'Favorites', icon: <Heart size={16} /> },
     { id: 'planToWatch', label: 'Plan to Watch', icon: <BookmarkPlus size={16} /> },
     { id: 'watching', label: 'Watching', icon: <Play size={16} /> },
-    { id: 'completed', label: 'Completed', icon: <CheckCircle size={16} /> }
+    { id: 'completed', label: 'Completed', icon: <CheckCircle size={16} /> },
+    ...Object.keys(watchlists)
+      .filter(key => !['planToWatch', 'watching', 'completed'].includes(key))
+      .map(key => ({ id: key, label: key, icon: <BookmarkPlus size={16} /> }))
   ];
 
   const [activeTab, setActiveTab] = useState('favorite');
+  const [newListName, setNewListName] = useState('');
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const getActiveList = () => {
     if (activeTab === 'favorite') return favorites;
     return watchlists[activeTab] || [];
+  };
+
+  const handleShare = () => {
+    if (!user) return;
+    const url = `${window.location.origin}/list/${user.id}/${activeTab}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const activeList = getActiveList();
@@ -35,27 +50,70 @@ export default function Library() {
 
       <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none', borderBottom: '1px solid var(--border-light)', marginBottom: '40px' }}>
         {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 24px',
-              background: activeTab === tab.id ? 'var(--gradient-primary)' : 'transparent',
-              color: activeTab === tab.id ? 'white' : 'var(--text-secondary)',
-              border: 'none',
-              borderRadius: '100px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {tab.icon} {tab.label}
-          </button>
+          <div key={tab.id} style={{ display: 'flex', alignItems: 'center' }}>
+            <button
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                background: activeTab === tab.id ? 'var(--gradient-primary)' : 'transparent',
+                color: activeTab === tab.id ? 'white' : 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: '100px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {tab.icon} {tab.label}
+            </button>
+            {!['favorite', 'planToWatch', 'watching', 'completed'].includes(tab.id) && (
+              <button 
+                onClick={() => {
+                  deleteList(tab.id);
+                  if (activeTab === tab.id) setActiveTab('favorite');
+                }}
+                style={{ background: 'transparent', border: 'none', color: '#ff6b6b', cursor: 'pointer', padding: '0 10px' }}
+                title="Delete List"
+              >
+                ×
+              </button>
+            )}
+          </div>
         ))}
+        {isCreatingList ? (
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            createList(newListName);
+            setActiveTab(newListName);
+            setNewListName('');
+            setIsCreatingList(false);
+          }} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input 
+              autoFocus
+              type="text" 
+              value={newListName} 
+              onChange={e => setNewListName(e.target.value)}
+              placeholder="List name..."
+              style={{ padding: '10px 16px', borderRadius: '100px', border: '1px solid var(--border-light)', background: 'rgba(255,255,255,0.05)', color: 'white' }}
+            />
+            <button type="submit" className="btn-primary" style={{ padding: '10px 16px' }}>Add</button>
+          </form>
+        ) : (
+          <button onClick={() => setIsCreatingList(true)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '100px', padding: '0 20px', cursor: 'pointer', fontWeight: 'bold' }}>+ New List</button>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h3>{activeTab === 'favorite' ? 'Favorites' : activeTab}</h3>
+        {activeTab !== 'favorite' && (
+          <button onClick={handleShare} className="btn-secondary">
+            {copied ? 'Copied!' : 'Share List'}
+          </button>
+        )}
       </div>
 
       {activeList.length === 0 ? (
