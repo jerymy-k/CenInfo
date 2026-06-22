@@ -36,8 +36,8 @@ export async function fetchHomeCategories() {
 }
 
 export async function fetchFilteredCategory(newType) {
-  let url = "";
-  let label = "";
+  let url;
+  let label;
   if (newType === "movie") {
     url = `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}`;
     label = "Trending Movies";
@@ -145,7 +145,7 @@ export async function searchMovies(query, type, page = 1, year = "") {
     } else {
       return { results: [], totalResults: 0, error: data1.Error };
     }
-  } catch (error) {
+  } catch {
     return { results: [], totalResults: 0, error: "Something went wrong." };
   }
 }
@@ -212,7 +212,7 @@ export async function fetchMovieDetails(imdbID) {
       tmdbId,
       cleanYear
     };
-  } catch (err) {
+  } catch {
     return { error: "Something went wrong.", data: null };
   }
 }

@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Heart, Clock, Play, CheckCircle, Search, BookmarkPlus } from "lucide-react";
+import { Heart, Play, CheckCircle, Search, BookmarkPlus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLibrary } from "../context/LibraryContext";
 import MovieCard from "../components/MovieCard";
-import { supabase } from "../supabase";
 
 export default function Library() {
-  const { favorites, watchlists, toggleFavorite, isFavorite, createList, deleteList, user } = useAuth();
+  const { user } = useAuth();
+  const { favorites, watchlists, toggleFavorite, isFavorite, createList, deleteList } = useLibrary();
   
   const tabs = [
     { id: 'favorite', label: 'Favorites', icon: <Heart size={16} /> },

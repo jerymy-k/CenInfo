@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, ArrowLeft, Star, Clock, Calendar, Globe, Heart, Server, MonitorPlay, ListVideo, Lightbulb, User, X, Film, BookmarkPlus, CheckCircle, ChevronDown } from "lucide-react";
+import { Play, ArrowLeft, Star, Clock, Calendar, Globe, Heart, Server, MonitorPlay, ListVideo, Lightbulb, User, Users, X, Film, BookmarkPlus, CheckCircle, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLibrary } from "../context/LibraryContext";
+import { useSocial } from "../context/SocialContext";
 import { fetchMovieDetails, fetchTrailer, fetchProviders, fetchEpisodes, fetchRecommendations, fetchCast, fetchReviews, fetchTmdbMovieInfo, fetchMovieCollection } from "../services/api";
-import ReviewSection from "../components/ReviewSection";
+
 import ProviderBlock from "../components/ProviderBlock";
 import MovieCard from "../components/MovieCard";
 import { supabase } from "../supabase";
@@ -15,7 +17,8 @@ const SERVER_OPTIONS = ["VidSrc", "Embed.su", "VidSrc.cc", "VidSrc.net", "VidLin
 export default function MovieDetails() {
   const { imdbID } = useParams();
   const navigate = useNavigate();
-  const { user, setShowAuth, toggleFavorite, isFavorite, addToHistory, updateWatchlist, getWatchlistStatus } = useAuth();
+  const { user, setShowAuth } = useAuth();
+  const { toggleFavorite, isFavorite, addToHistory, updateWatchlist, getWatchlistStatus } = useLibrary();
   
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +46,12 @@ export default function MovieDetails() {
   const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
   const [watchedEpisodes, setWatchedEpisodes] = useState([]);
   
+  // Watch Party State
+  const { sendWatchInvite } = useSocial();
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [friendsList, setFriendsList] = useState([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+
   const iframeRef = useRef(null);
   const playerContainerRef = useRef(null);
   const controlsRef = useRef(null);
@@ -53,6 +62,7 @@ export default function MovieDetails() {
         if (data) setWatchedEpisodes(data.map(r => r.episode_id));
       });
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWatchedEpisodes([]);
     }
   }, [user]);
@@ -98,6 +108,42 @@ export default function MovieDetails() {
       
       return newWatched;
     });
+  };
+
+  const handleOpenWatchParty = async () => {
+    if (!user) { setShowAuth(true); return; }
+    
+    setShowInviteModal(true);
+    setLoadingFriends(true);
+    
+    const { data: friendships } = await supabase
+      .from('friendships')
+      .select('*')
+      .eq('status', 'accepted')
+      .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
+      
+    if (friendships && friendships.length > 0) {
+      const friendIds = friendships.map(f => f.requester_id === user.id ? f.receiver_id : f.requester_id);
+      const { data: profiles } = await supabase.from('profiles').select('id, username, avatar').in('id', friendIds);
+      setFriendsList(profiles || []);
+    } else {
+      setFriendsList([]);
+    }
+    setLoadingFriends(false);
+  };
+
+  const handleInviteFriend = async (friendId) => {
+    // Generate Room ID
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const roomId = `${selected.imdbID}-${crypto.randomUUID()}`;
+    
+    // Get my profile username
+    const { data: myProfile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+    
+    await sendWatchInvite(friendId, roomId, selected.Title, myProfile?.username);
+    
+    // Navigate self to room
+    navigate(`/watch-party/${roomId}`);
   };
 
   useEffect(() => {
@@ -171,6 +217,7 @@ export default function MovieDetails() {
 
   useEffect(() => {
     if (selected?.Type === "series" && selected?.imdbID) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoadingEpisodes(true);
       fetchEpisodes(selected.imdbID, season).then(eps => {
         setEpisodes(eps);
@@ -185,6 +232,7 @@ export default function MovieDetails() {
     } else {
       setEpisodes([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, season]);
 
   // Disable body scroll when theater mode is active
@@ -194,10 +242,7 @@ export default function MovieDetails() {
     return () => { document.body.style.overflow = 'auto'; };
   }, [theaterMode]);
 
-  const handleEpisodeChange = (e) => {
-    setEpisode(e.target.value);
-    setPlayerIndex(0);
-  };
+
 
   const submitReview = async (e, parentId = null) => {
     e.preventDefault();
@@ -286,6 +331,11 @@ export default function MovieDetails() {
               }}>
                 <Play size={20} fill="currentColor" /> Watch Now
               </button>
+              
+              <button className="btn-secondary" style={{ flex: '1 1 120px', justifyContent: 'center', background: 'rgba(240,40,122,0.1)', color: 'var(--accent-fuchsia)', borderColor: 'var(--accent-fuchsia)' }} onClick={handleOpenWatchParty}>
+                <Users size={20} /> Host Party
+              </button>
+
               {trailerUrl && (
                 <button className="btn-secondary" style={{ flex: '1 1 120px', justifyContent: 'center' }} onClick={() => setShowTrailer(true)}>
                   <Film size={20} /> Trailer
@@ -685,6 +735,59 @@ export default function MovieDetails() {
               </button>
               <div style={{ aspectRatio: '16/9', width: '100%' }}>
                 <iframe src={trailerUrl} title={`${selected.Title} trailer`} allowFullScreen style={{ width: '100%', height: '100%', border: 'none' }} />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* WATCH PARTY INVITE MODAL */}
+      <AnimatePresence>
+        {showInviteModal && (
+          <motion.div 
+            className="theater-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 3000 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '24px', overflow: 'hidden', position: 'relative', boxShadow: 'var(--shadow-xl)' }}
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+            >
+              <div style={{ padding: '24px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users color="var(--accent-fuchsia)" /> Invite a Friend
+                </h3>
+                <button onClick={() => setShowInviteModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div style={{ padding: '24px', maxHeight: '400px', overflowY: 'auto' }}>
+                {loadingFriends ? (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Loading friends...</p>
+                ) : friendsList.length === 0 ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>You don't have any accepted friends yet to invite.</p>
+                    <button className="btn-secondary" onClick={() => { setShowInviteModal(false); navigate('/discover'); }}>Find Users</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {friendsList.map(friend => (
+                      <div key={friend.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <img src={friend.avatar} alt={friend.username} style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+                          <span style={{ fontWeight: 'bold' }}>{friend.username}</span>
+                        </div>
+                        <button 
+                          className="btn-primary" 
+                          style={{ padding: '8px 16px', fontSize: '13px' }}
+                          onClick={() => handleInviteFriend(friend.id)}
+                        >
+                          Send Invite
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

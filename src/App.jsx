@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { LibraryProvider } from "./context/LibraryContext";
+import { SocialProvider } from "./context/SocialContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AnimatePresence } from "framer-motion";
 
@@ -18,6 +20,7 @@ import ActorProfile from "./pages/ActorProfile";
 import Discover from "./pages/Discover";
 import SharedList from "./pages/SharedList";
 import ProtectedRoute from "./components/ProtectedRoute";
+import WatchParty from "./pages/WatchParty";
 
 import "./App.css";
 
@@ -43,6 +46,11 @@ function AnimatedRoutes() {
         } />
         <Route path="/list/:userId/:listName" element={<SharedList />} />
         <Route path="/user/:userId" element={<PublicProfile />} />
+        <Route path="/watch-party/:roomId" element={
+          <ProtectedRoute>
+            <WatchParty />
+          </ProtectedRoute>
+        } />
       </Routes>
     </AnimatePresence>
   );
@@ -52,6 +60,22 @@ function WelcomeWrapper() {
   const { showRazaneWelcome, setShowRazaneWelcome } = useAuth();
   if (!showRazaneWelcome) return null;
   return <SpecialWelcome onClose={() => setShowRazaneWelcome(false)} />;
+}
+
+function ConditionalFooter() {
+  const location = useLocation();
+  if (location.pathname.startsWith('/watch-party')) return null;
+  return <Footer />;
+}
+
+function MainContent() {
+  const location = useLocation();
+  const isWatchParty = location.pathname.startsWith('/watch-party');
+  return (
+    <main className={isWatchParty ? "" : "scrollable-area"} style={isWatchParty ? { flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' } : {}}>
+      <AnimatedRoutes />
+    </main>
+  );
 }
 
 export default function App() {
@@ -70,17 +94,19 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <ThemeProvider>
-        <WelcomeWrapper />
-        <div className="app-container">
-          <Navbar />
-          <main className="scrollable-area">
-            <AnimatedRoutes />
-          </main>
-          <Footer />
-          <AuthModal />
-        </div>
-      </ThemeProvider>
+      <LibraryProvider>
+        <SocialProvider>
+          <ThemeProvider>
+            <WelcomeWrapper />
+            <div className="app-container" style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <Navbar />
+              <MainContent />
+              <ConditionalFooter />
+              <AuthModal />
+            </div>
+          </ThemeProvider>
+        </SocialProvider>
+      </LibraryProvider>
     </AuthProvider>
   );
 }

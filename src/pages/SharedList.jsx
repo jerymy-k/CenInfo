@@ -9,7 +9,7 @@ export default function SharedList() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [ownerEmail, setOwnerEmail] = useState("A User");
+  const [ownerEmail] = useState("A User");
 
   useEffect(() => {
     async function loadSharedList() {

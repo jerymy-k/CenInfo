@@ -16,32 +16,32 @@ export default function ReviewSection({ movieId }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    async function fetchReviews() {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('reviews')
+          .select('*')
+          .eq('movie_id', movieId)
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          console.warn("Reviews table may not exist yet:", error.message);
+          setReviews([]);
+        } else {
+          setReviews(data || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
     if (movieId) {
       fetchReviews();
     }
   }, [movieId]);
-
-  async function fetchReviews() {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('movie_id', movieId)
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        console.warn("Reviews table may not exist yet:", error.message);
-        setReviews([]);
-      } else {
-        setReviews(data || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -75,7 +75,7 @@ export default function ReviewSection({ movieId }) {
       }
       setRating(0);
       setContent("");
-    } catch (err) {
+    } catch {
       setError("Failed to submit review. Your backend 'reviews' table might not be created yet.");
     } finally {
       setSubmitting(false);

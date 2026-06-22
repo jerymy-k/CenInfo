@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Filter, SlidersHorizontal } from "lucide-react";
 import { fetchAdvancedDiscover } from "../services/api";
 import MovieCard from "../components/MovieCard";
-import { useAuth } from "../context/AuthContext";
+import { useLibrary } from "../context/LibraryContext";
 
 const GENRES = [
   { id: 28, name: "Action" },
@@ -27,7 +27,7 @@ const GENRES = [
 ];
 
 export default function Discover() {
-  const { toggleFavorite, isFavorite } = useAuth();
+  const { toggleFavorite, isFavorite } = useLibrary();
   
   const [type, setType] = useState("movie");
   const [genre, setGenre] = useState("");
@@ -55,6 +55,7 @@ export default function Discover() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     loadDiscover(1);
   }, [type, genre, year, minRating]);
 

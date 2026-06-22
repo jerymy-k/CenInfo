@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Play, Search as SearchIcon, ChevronLeft, ChevronRight } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { useLibrary } from "../context/LibraryContext";
 import { fetchHomeCategories, fetchFilteredCategory, searchMovies, fetchUpcomingMovies, fetchRecommendationsByMovieId } from "../services/api";
 import MovieCard from "../components/MovieCard";
 
@@ -14,29 +14,31 @@ const FILTERS = [
 ];
 
 export default function Home() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const query = searchParams.get("q") || "";
   
   const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [type, setType] = useState("");
-  const [page, setPage] = useState(1);
+  const [, setPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [filterYear, setFilterYear] = useState("");
   const [categories, setCategories] = useState({});
   const [loadingHome, setLoadingHome] = useState(false);
 
   const railRefs = useRef({});
-  const { toggleFavorite, isFavorite, history, favorites } = useAuth();
+  const { toggleFavorite, isFavorite, history, favorites } = useLibrary();
 
   useEffect(() => {
     if (query.trim()) {
       handleSearch(1, filterYear, query);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       handleTypeChange(type);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   async function loadHomeMovies() {

@@ -14,11 +14,11 @@ export default function PublicProfile() {
   const [loading, setLoading] = useState(true);
   
   // Tabs & Privacy
-  const [activeTab, setActiveTab] = useState('activity');
+  const [activeTab, setActiveTab] = useState('overview');
   const [canViewLibrary, setCanViewLibrary] = useState(false);
   
   // Data
-  const [recentReviews, setRecentReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState({ total: 0, average: 0 });
   const [favorites, setFavorites] = useState([]);
   const [watchlists, setWatchlists] = useState({ planToWatch: [], watching: [], completed: [] });
   
@@ -66,9 +66,15 @@ export default function PublicProfile() {
                         (user && user.id === userId);
       setCanViewLibrary(isAllowed);
 
-      // 4. Fetch Data
-      const { data: reviewsData } = await supabase.from("user_reviews").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(5);
-      if (reviewsData) setRecentReviews(reviewsData);
+      // 4. Fetch Public Stats
+      const { data: reviewsData } = await supabase.from("user_reviews").select("rating").eq("user_id", userId);
+      if (reviewsData) {
+        const ratedReviews = reviewsData.filter(r => r.rating !== null);
+        const avg = ratedReviews.length > 0 
+          ? (ratedReviews.reduce((sum, r) => sum + r.rating, 0) / ratedReviews.length).toFixed(1)
+          : 0;
+        setReviewStats({ total: reviewsData.length, average: avg });
+      }
 
       if (isAllowed) {
         const { data: favs } = await supabase.from("favorites").select("*").eq("user_id", userId);
@@ -89,6 +95,7 @@ export default function PublicProfile() {
     }
     
     if (userId) loadProfileData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, user]);
 
   const handleFriendAction = async (action) => {
@@ -130,7 +137,7 @@ export default function PublicProfile() {
     <div className="glass-panel" style={{ padding: '60px', textAlign: 'center', marginTop: '40px' }}>
       <ShieldAlert size={48} color="var(--text-muted)" style={{ margin: '0 auto 20px' }} />
       <h3 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>Private Library</h3>
-      <p style={{ color: 'var(--text-muted)', fontSize: '18px', margin: 0, maxWidth: '500px', margin: '0 auto' }}>
+      <p style={{ color: 'var(--text-muted)', fontSize: '18px', maxWidth: '500px', margin: '0 auto' }}>
         {profile.username} has chosen to keep their cinematic library private.
         {profile.library_privacy === 'friends' && " You must be friends to view this content."}
       </p>
@@ -192,9 +199,9 @@ export default function PublicProfile() {
 
         {/* Tab Navigation */}
         <div style={{ display: 'flex', gap: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px', marginBottom: '40px', overflowX: 'auto' }} className="custom-scroll">
-          <button onClick={() => setActiveTab('activity')} style={{ background: 'transparent', border: 'none', color: activeTab === 'activity' ? 'white' : 'var(--text-muted)', fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', position: 'relative' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MessageSquare size={20}/> Activity</span>
-            {activeTab === 'activity' && <motion.div layoutId="activetab" style={{ position: 'absolute', bottom: '-17px', left: 0, right: 0, height: '3px', background: 'var(--accent-fuchsia)', borderRadius: '3px' }} />}
+          <button onClick={() => setActiveTab('overview')} style={{ background: 'transparent', border: 'none', color: activeTab === 'overview' ? 'white' : 'var(--text-muted)', fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', position: 'relative' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><User size={20}/> Overview</span>
+            {activeTab === 'overview' && <motion.div layoutId="activetab" style={{ position: 'absolute', bottom: '-17px', left: 0, right: 0, height: '3px', background: 'var(--accent-fuchsia)', borderRadius: '3px' }} />}
           </button>
           <button onClick={() => setActiveTab('favorites')} style={{ background: 'transparent', border: 'none', color: activeTab === 'favorites' ? 'white' : 'var(--text-muted)', fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', position: 'relative' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Heart size={20}/> Favorites</span>
@@ -209,30 +216,43 @@ export default function PublicProfile() {
         {/* Tab Content */}
         <AnimatePresence mode="wait">
           
-          {/* ACTIVITY TAB */}
-          {activeTab === 'activity' && (
-            <motion.div key="activity" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              {recentReviews.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '800px', margin: '0 auto' }}>
-                  {recentReviews.map(review => (
-                    <div key={review.id} className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '4px solid var(--accent-fuchsia)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Link to={`/movie/${review.imdb_id}`} style={{ color: 'white', textDecoration: 'none', fontWeight: '800', fontSize: '20px' }} className="text-gradient">
-                          Reviewed a Movie
-                        </Link>
-                        {review.rating && (
-                          <span className="nav-badge" style={{ fontSize: '16px', padding: '6px 16px' }}>{review.rating} / 10</span>
-                        )}
-                      </div>
-                      <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '18px', lineHeight: '1.6' }}>"{review.content}"</p>
-                    </div>
-                  ))}
+          {/* OVERVIEW TAB */}
+          {activeTab === 'overview' && (
+            <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '40px' }}>
+                <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '10px', borderLeft: '4px solid var(--accent-fuchsia)' }}>
+                  <MessageSquare size={32} color="var(--accent-fuchsia)" />
+                  <span style={{ fontSize: '48px', fontWeight: '800' }}>{reviewStats.total}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '16px' }}>Total Reviews Written</span>
                 </div>
-              ) : (
-                <div className="glass-panel" style={{ padding: '60px', textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '20px', margin: 0 }}>This user hasn't posted any public reviews yet.</p>
+                
+                <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '10px', borderLeft: '4px solid var(--accent-amber)' }}>
+                  <Heart size={32} color="var(--accent-amber)" />
+                  <span style={{ fontSize: '48px', fontWeight: '800' }}>{reviewStats.average}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '16px' }}>Average Score Given</span>
                 </div>
-              )}
+
+                <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '10px', borderLeft: '4px solid var(--accent-violet)' }}>
+                  <UserCheck size={32} color="var(--accent-violet)" />
+                  <span style={{ fontSize: '48px', fontWeight: '800' }}>{friendsCount}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '16px' }}>Total Connections</span>
+                </div>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', background: 'linear-gradient(135deg, rgba(240, 40, 122, 0.05), rgba(138, 43, 226, 0.05))' }}>
+                <Film size={48} color="rgba(255,255,255,0.2)" style={{ margin: '0 auto 20px' }} />
+                <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Cinematic Profile</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '18px', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
+                  {profile.username} is a member of the CenInfo community. Check out their Favorites and Watchlists to see what kind of movies they are into!
+                </p>
+                {friendStatus === 'none' && user?.id !== userId && (
+                  <button className="btn-primary" onClick={() => handleFriendAction('add')} style={{ marginTop: '30px', padding: '12px 32px' }}>
+                    Connect with {profile.username}
+                  </button>
+                )}
+              </div>
+              
             </motion.div>
           )}
 

@@ -4,12 +4,12 @@ import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, CalendarDays, UserRound } from "lucide-react";
 import { fetchActorDetails } from "../services/api";
 import MovieCard from "../components/MovieCard";
-import { useAuth } from "../context/AuthContext";
+import { useLibrary } from "../context/LibraryContext";
 
 export default function ActorProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toggleFavorite, isFavorite } = useAuth();
+  const { toggleFavorite, isFavorite } = useLibrary();
   
   const [actor, setActor] = useState(null);
   const [loading, setLoading] = useState(true);

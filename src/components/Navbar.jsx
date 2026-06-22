@@ -1,11 +1,12 @@
 import { useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Compass, BookmarkPlus, PlayCircle, Film, Star, Menu, User, LogOut, LayoutDashboard, Bell, Check } from "lucide-react";
+import { Search, X, Compass, BookmarkPlus, PlayCircle, Film, Menu, User, LogOut, LayoutDashboard, Bell, Check } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useTheme } from "../context/ThemeContext";
+import { useLibrary } from "../context/LibraryContext";
+import { useSocial } from "../context/SocialContext";
+
 import { fetchLiveSearch } from "../services/api";
-import { supabase } from "../supabase";
 import logo from "../assets/CenInfoLogo.png";
 
 export default function Navbar({ onSearch }) {
@@ -13,8 +14,9 @@ export default function Navbar({ onSearch }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user, favorites, setShowAuth, signOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { user, setShowAuth, signOut } = useAuth();
+  const { favorites } = useLibrary();
+  const { incomingRequests, handleRequest, watchInvites, removeWatchInvite } = useSocial();
   const navigate = useNavigate();
   const searchInputRef = useRef(null);
   
@@ -23,49 +25,7 @@ export default function Navbar({ onSearch }) {
   const [activePreview, setActivePreview] = useState(null);
   
   // Friend Requests State
-  const [incomingRequests, setIncomingRequests] = useState([]);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      loadIncomingRequests();
-      // Optional: Set up real-time subscription here
-    } else {
-      setIncomingRequests([]);
-    }
-  }, [user]);
-
-  async function loadIncomingRequests() {
-    // Rely entirely on manual fetch to avoid PostgREST foreign key schema cache errors
-    const { data: rawRequests, error } = await supabase.from('friendships').select('*').eq('receiver_id', user.id).eq('status', 'pending');
-    
-    if (error) {
-      console.error("Error fetching incoming requests:", error);
-      return;
-    }
-    
-    if (rawRequests && rawRequests.length > 0) {
-      const requesterIds = rawRequests.map(r => r.requester_id);
-      const { data: profiles } = await supabase.from('profiles').select('*').in('id', requesterIds);
-      
-      const enriched = rawRequests.map(req => ({
-        ...req,
-        profile: profiles?.find(p => p.id === req.requester_id) || { username: 'Someone', avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.requester_id}` }
-      }));
-      setIncomingRequests(enriched);
-    } else {
-      setIncomingRequests([]);
-    }
-  }
-
-  async function handleRequest(requestId, action) {
-    if (action === 'accept') {
-      await supabase.from('friendships').update({ status: 'accepted' }).eq('id', requestId);
-    } else {
-      await supabase.from('friendships').delete().eq('id', requestId);
-    }
-    setIncomingRequests(prev => prev.filter(r => r.id !== requestId));
-  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -157,9 +117,9 @@ export default function Navbar({ onSearch }) {
                 style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
               >
                 <Bell size={20} />
-                {incomingRequests.length > 0 && (
+                {(incomingRequests.length > 0 || watchInvites.length > 0) && (
                   <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: 'var(--accent-fuchsia)', color: 'white', fontSize: '10px', fontWeight: 'bold', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {incomingRequests.length}
+                    {incomingRequests.length + watchInvites.length}
                   </span>
                 )}
               </button>
@@ -169,29 +129,63 @@ export default function Navbar({ onSearch }) {
                 {isRequestsOpen && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                    style={{ position: 'absolute', top: '120%', right: 0, width: '300px', background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', border: 'var(--glass-border)', borderRadius: '16px', padding: '16px', boxShadow: 'var(--shadow-lg)', zIndex: 1000 }}
+                    style={{ position: 'absolute', top: '120%', right: 0, width: '320px', background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', border: 'var(--glass-border)', borderRadius: '16px', padding: '16px', boxShadow: 'var(--shadow-lg)', zIndex: 1000 }}
                   >
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>Friend Requests</h4>
-                    {incomingRequests.length === 0 ? (
-                      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px' }}>No pending requests.</p>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {incomingRequests.map(req => (
-                          <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.3)', padding: '8px', borderRadius: '12px' }}>
-                            <Link to={`/user/${req.profile.id}`} style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit', flex: 1, overflow: 'hidden' }}>
-                              <img src={req.profile.avatar} alt="avatar" style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
-                              <div style={{ flex: 1, overflow: 'hidden' }}>
-                                <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{req.profile.username}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h4 style={{ margin: 0, fontSize: '16px' }}>Notifications</h4>
+                    </div>
+
+                    <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {incomingRequests.length === 0 && watchInvites.length === 0 ? (
+                        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px' }}>No new notifications.</p>
+                      ) : (
+                        <>
+                          {/* Watch Party Invites */}
+                          {watchInvites.length > 0 && (
+                            <div>
+                              <h5 style={{ margin: '0 0 8px 0', fontSize: '13px', color: 'var(--accent-fuchsia)', textTransform: 'uppercase' }}>Watch Parties</h5>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {watchInvites.map(inv => (
+                                  <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(240,40,122,0.1)', border: '1px solid rgba(240,40,122,0.3)', padding: '10px', borderRadius: '12px' }}>
+                                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                                      <p style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: 'bold' }}>{inv.sender_name}</p>
+                                      <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.8)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>Invited you to watch: {inv.movie_title}</p>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                      <button onClick={() => { setIsRequestsOpen(false); removeWatchInvite(inv.id); navigate(`/watch-party/${inv.room_id}`); }} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-fuchsia)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Check size={14} /></button>
+                                      <button onClick={() => removeWatchInvite(inv.id)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={14} /></button>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            </Link>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              <button onClick={() => handleRequest(req.id, 'accept')} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-fuchsia)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} /></button>
-                              <button onClick={() => handleRequest(req.id, 'decline')} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          )}
+
+                          {/* Friend Requests */}
+                          {incomingRequests.length > 0 && (
+                            <div>
+                              <h5 style={{ margin: '0 0 8px 0', fontSize: '13px', color: 'var(--accent-violet)', textTransform: 'uppercase' }}>Friend Requests</h5>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {incomingRequests.map(req => (
+                                  <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '12px' }}>
+                                    <Link to={`/user/${req.profile.id}`} style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit', flex: 1, overflow: 'hidden' }}>
+                                      <img src={req.profile.avatar} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{req.profile.username}</p>
+                                      </div>
+                                    </Link>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                      <button onClick={() => handleRequest(req.id, 'accept')} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-violet)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Check size={14} /></button>
+                                      <button onClick={() => handleRequest(req.id, 'decline')} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={14} /></button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
