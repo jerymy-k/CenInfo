@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, ArrowLeft, Star, Clock, Calendar, Globe, Heart, Server, MonitorPlay, ListVideo, Lightbulb, User, Users, X, Film, BookmarkPlus, CheckCircle, ChevronDown } from "lucide-react";
+import { Play, ArrowLeft, Star, Clock, Calendar, Globe, Heart, Server, MonitorPlay, ListVideo, Lightbulb, User, Users, X, Film, BookmarkPlus, CheckCircle, ChevronDown, Download } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLibrary } from "../context/LibraryContext";
 import { useSocial } from "../context/SocialContext";
-import { fetchMovieDetails, fetchTrailer, fetchProviders, fetchEpisodes, fetchRecommendations, fetchCast, fetchReviews, fetchTmdbMovieInfo, fetchMovieCollection } from "../services/api";
+import { fetchMovieDetails, fetchTrailer, fetchProviders, fetchEpisodes, fetchRecommendations, fetchCast, fetchReviews, fetchTmdbMovieInfo, fetchMovieCollection, fetchMovieTorrents } from "../services/api";
 
 import ProviderBlock from "../components/ProviderBlock";
 import MovieCard from "../components/MovieCard";
@@ -18,7 +18,7 @@ export default function MovieDetails() {
   const { imdbID } = useParams();
   const navigate = useNavigate();
   const { user, setShowAuth } = useAuth();
-  const { toggleFavorite, isFavorite, addToHistory, updateWatchlist, getWatchlistStatus } = useLibrary();
+  const { toggleFavorite, isFavorite, addToHistory, updateWatchlist, getWatchlistStatus, downloadMovie, downloads } = useLibrary();
   
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -46,11 +46,16 @@ export default function MovieDetails() {
   const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
   const [watchedEpisodes, setWatchedEpisodes] = useState([]);
   
-  // Watch Party State
-  const { sendWatchInvite } = useSocial();
+  // Watch Party & Notifications State
+  const { sendWatchInvite, showToast } = useSocial();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [friendsList, setFriendsList] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
+  
+  // Torrent State
+  const [showTorrentModal, setShowTorrentModal] = useState(false);
+  const [torrents, setTorrents] = useState([]);
+  const [loadingTorrents, setLoadingTorrents] = useState(false);
 
   const iframeRef = useRef(null);
   const playerContainerRef = useRef(null);
@@ -144,6 +149,32 @@ export default function MovieDetails() {
     
     // Navigate self to room
     navigate(`/watch-party/${roomId}`);
+  };
+
+  const handleDownload = async () => {
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
+    
+    if (selected.Type === "series") {
+      if (showToast) showToast("Torrent downloads are only available for movies.", "Unsupported");
+      else alert("Torrent downloads are only available for movies.");
+      return;
+    }
+
+    setShowTorrentModal(true);
+    setLoadingTorrents(true);
+    const torrentData = await fetchMovieTorrents(selected.imdbID);
+    setTorrents(torrentData);
+    setLoadingTorrents(false);
+  };
+
+  const handleTorrentClick = (torrent) => {
+    downloadMovie(selected);
+    window.location.href = `magnet:?xt=urn:btih:${torrent.hash}&dn=${encodeURIComponent(selected.Title)}&tr=udp://tracker.opentrackr.org:1337/announce`;
+    setShowTorrentModal(false);
+    if (showToast) showToast("Opening torrent client...", "Downloading");
   };
 
   useEffect(() => {
@@ -341,6 +372,10 @@ export default function MovieDetails() {
                   <Film size={20} /> Trailer
                 </button>
               )}
+
+              <button className="btn-secondary" style={{ flex: '1 1 120px', justifyContent: 'center' }} onClick={handleDownload}>
+                <Download size={20} /> Download
+              </button>
               
               {/* WATCHLIST DROPDOWN */}
               <div style={{ position: 'relative', flex: '1 1 140px' }}>
@@ -783,6 +818,58 @@ export default function MovieDetails() {
                           onClick={() => handleInviteFriend(friend.id)}
                         >
                           Send Invite
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* TORRENT DOWNLOAD MODAL */}
+      <AnimatePresence>
+        {showTorrentModal && (
+          <motion.div 
+            className="theater-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 3000 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '24px', overflow: 'hidden', position: 'relative', boxShadow: 'var(--shadow-xl)' }}
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+            >
+              <div style={{ padding: '24px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Download color="var(--accent-fuchsia)" /> Download Torrents
+                </h3>
+                <button onClick={() => setShowTorrentModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div style={{ padding: '24px', maxHeight: '400px', overflowY: 'auto' }}>
+                {loadingTorrents ? (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Searching for torrents...</p>
+                ) : torrents.length === 0 ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>No torrents found for this movie.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {torrents.map(torrent => (
+                      <div key={torrent.hash} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '12px' }}>
+                        <div>
+                          <span style={{ fontWeight: 'bold', display: 'block', fontSize: '16px' }}>{torrent.quality} {torrent.type}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{torrent.size} • {torrent.seeds} Seeds</span>
+                        </div>
+                        <button 
+                          className="btn-primary" 
+                          style={{ padding: '8px 16px', fontSize: '13px' }}
+                          onClick={() => handleTorrentClick(torrent)}
+                        >
+                          Magnet Link
                         </button>
                       </div>
                     ))}

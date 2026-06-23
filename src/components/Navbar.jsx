@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Compass, BookmarkPlus, PlayCircle, Film, Menu, User, LogOut, LayoutDashboard, Bell, Check } from "lucide-react";
+import { Search, X, Compass, BookmarkPlus, PlayCircle, Film, Menu, User, LogOut, LayoutDashboard, Bell, Check, Download } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useLibrary } from "../context/LibraryContext";
 import { useSocial } from "../context/SocialContext";
@@ -100,6 +100,15 @@ export default function Navbar({ onSearch }) {
             >
               My Library
               {favorites.length > 0 && <span className="nav-badge">{favorites.length}</span>}
+            </button>
+            <button
+              className="nav-link-btn"
+              onClick={() => {
+                if (!user) { setShowAuth(true); return; }
+                navigate("/downloads");
+              }}
+            >
+              Downloads
             </button>
           </nav>
         </div>
@@ -267,6 +276,12 @@ export default function Navbar({ onSearch }) {
                   <BookmarkPlus size={24} color="var(--accent-fuchsia)" /> My Library 
                   {favorites.length > 0 && <span className="nav-badge" style={{ fontSize: '14px', position: 'relative', top: 0, right: 0 }}>{favorites.length}</span>}
                 </button>
+                
+                {user && (
+                  <Link to="/downloads" style={{ color: 'white', fontSize: '22px', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '16px' }} onClick={() => setIsMobileMenuOpen(false)}>
+                    <Download size={24} color="var(--accent-amber)" /> Downloads
+                  </Link>
+                )}
                 
                 {user && (
                   <Link to="/profile" style={{ color: 'white', fontSize: '22px', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '16px' }} onClick={() => setIsMobileMenuOpen(false)}>

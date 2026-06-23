@@ -16,6 +16,7 @@ export function LibraryProvider({ children }) {
     watching: [],
     completed: []
   });
+  const [downloads, setDownloads] = useState([]);
 
   useEffect(() => {
     if (user) {
@@ -24,6 +25,7 @@ export function LibraryProvider({ children }) {
       setFavorites([]);
       setHistory([]);
       setWatchlists({ planToWatch: [], watching: [], completed: [] });
+      setDownloads([]);
     }
   }, [user]);
 
@@ -55,6 +57,12 @@ export function LibraryProvider({ children }) {
         newWatchlists[row.list_type].push(row.movie_data);
       });
       setWatchlists(newWatchlists);
+    }
+
+    // Load mock downloads from local storage
+    const savedDownloads = localStorage.getItem(`ceninfo_downloads_${userId}`);
+    if (savedDownloads) {
+      setDownloads(JSON.parse(savedDownloads));
     }
   }
 
@@ -167,6 +175,30 @@ export function LibraryProvider({ children }) {
     }
   }
 
+  function downloadMovie(movie, episodeInfo = null) {
+    if (!user) { setShowAuth(true); return; }
+    const downloadItem = {
+      ...movie,
+      downloadId: Date.now(),
+      downloadedAt: new Date().toISOString(),
+      episodeInfo // { season, episode, title } if applicable
+    };
+    setDownloads(prev => {
+      const updated = [downloadItem, ...prev];
+      localStorage.setItem(`ceninfo_downloads_${user.id}`, JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  function removeDownload(downloadId) {
+    if (!user) return;
+    setDownloads(prev => {
+      const updated = prev.filter(d => d.downloadId !== downloadId);
+      localStorage.setItem(`ceninfo_downloads_${user.id}`, JSON.stringify(updated));
+      return updated;
+    });
+  }
+
   return (
     <LibraryContext.Provider value={{
       favorites,
@@ -178,7 +210,10 @@ export function LibraryProvider({ children }) {
       updateWatchlist,
       getWatchlistStatus,
       createList,
-      deleteList
+      deleteList,
+      downloads,
+      downloadMovie,
+      removeDownload
     }}>
       {children}
     </LibraryContext.Provider>

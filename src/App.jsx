@@ -21,6 +21,7 @@ import Discover from "./pages/Discover";
 import SharedList from "./pages/SharedList";
 import ProtectedRoute from "./components/ProtectedRoute";
 import WatchParty from "./pages/WatchParty";
+import Downloads from "./pages/Downloads";
 
 import "./App.css";
 
@@ -51,6 +52,11 @@ function AnimatedRoutes() {
             <WatchParty />
           </ProtectedRoute>
         } />
+        <Route path="/downloads" element={
+          <ProtectedRoute>
+            <Downloads />
+          </ProtectedRoute>
+        } />
       </Routes>
     </AnimatePresence>
   );
@@ -79,6 +85,9 @@ function MainContent() {
 }
 
 export default function App() {
+  const location = useLocation();
+  const isWatchParty = location.pathname.startsWith('/watch-party');
+
   useEffect(() => {
     // Catch OAuth errors that come back from Supabase in the URL hash
     if (window.location.hash && window.location.hash.includes('error=')) {
@@ -98,7 +107,7 @@ export default function App() {
         <SocialProvider>
           <ThemeProvider>
             <WelcomeWrapper />
-            <div className="app-container" style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="app-container" style={isWatchParty ? { height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' } : {}}>
               <Navbar />
               <MainContent />
               <ConditionalFooter />

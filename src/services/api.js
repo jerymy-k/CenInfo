@@ -423,3 +423,17 @@ export async function fetchLiveSearch(query) {
     return [];
   }
 }
+
+export async function fetchMovieTorrents(imdbID) {
+  try {
+    const res = await fetch(`https://yts.mx/api/v2/list_movies.json?query_term=${imdbID}`);
+    const data = await res.json();
+    if (data.status === "ok" && data.data?.movies?.length > 0) {
+      return data.data.movies[0].torrents || [];
+    }
+    return [];
+  } catch (error) {
+    console.error("Error fetching torrents:", error);
+    return [];
+  }
+}
