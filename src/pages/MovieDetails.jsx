@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, ArrowLeft, Star, Clock, Calendar, Globe, Heart, Server, MonitorPlay, ListVideo, Lightbulb, User, Users, X, Film, BookmarkPlus, CheckCircle, ChevronDown, Download } from "lucide-react";
+import { Play, ArrowLeft, Star, Clock, Calendar, Globe, Heart, Server, MonitorPlay, ListVideo, Lightbulb, User, Users, X, Film, BookmarkPlus, CheckCircle, ChevronDown, Download, Languages } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLibrary } from "../context/LibraryContext";
@@ -12,7 +12,7 @@ import ProviderBlock from "../components/ProviderBlock";
 import MovieCard from "../components/MovieCard";
 import { supabase } from "../supabase";
 
-const SERVER_OPTIONS = ["VidSrc", "Embed.su", "VidSrc.cc", "VidSrc.net", "VidLink", "MultiEmbed"];
+const SERVER_OPTIONS = ["VidSrc", "Embed.su", "VidSrc.cc", "VidSrc.net", "VidLink", "MultiEmbed", "AutoEmbed", "SmashyStream"];
 
 export default function MovieDetails() {
   const { imdbID } = useParams();
@@ -56,6 +56,9 @@ export default function MovieDetails() {
   const [showTorrentModal, setShowTorrentModal] = useState(false);
   const [torrents, setTorrents] = useState([]);
   const [loadingTorrents, setLoadingTorrents] = useState(false);
+  
+  // Subtitle Fix State
+  const [showSubtitleModal, setShowSubtitleModal] = useState(false);
 
   const iframeRef = useRef(null);
   const playerContainerRef = useRef(null);
@@ -512,7 +515,6 @@ export default function MovieDetails() {
       <section id="watch-player" className="watch-section">
         <div className={`watch-premium-container ${theaterMode ? 'theater-mode-active' : ''}`}>
           
-          {/* Watch Header */}
           <div className="watch-header">
             <div className="watch-header-info">
               <MonitorPlay size={24} color="var(--accent-fuchsia)" />
@@ -521,13 +523,22 @@ export default function MovieDetails() {
                 <p>Select a server below if the video doesn't load</p>
               </div>
             </div>
-            <button 
-              className={`server-btn-premium ${theaterMode ? 'active' : ''}`} 
-              style={{ width: 'auto', padding: '10px 20px', whiteSpace: 'nowrap' }}
-              onClick={() => setTheaterMode(!theaterMode)}
-            >
-              <Lightbulb size={18} /> {theaterMode ? 'Lights On' : 'Lights Out'}
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="server-btn-premium" 
+                style={{ width: 'auto', padding: '10px 20px', whiteSpace: 'nowrap', background: 'rgba(240,40,122,0.1)', color: 'var(--accent-fuchsia)', borderColor: 'var(--accent-fuchsia)' }}
+                onClick={() => setShowSubtitleModal(true)}
+              >
+                <Languages size={18} /> Fix Subtitles
+              </button>
+              <button 
+                className={`server-btn-premium ${theaterMode ? 'active' : ''}`} 
+                style={{ width: 'auto', padding: '10px 20px', whiteSpace: 'nowrap' }}
+                onClick={() => setTheaterMode(!theaterMode)}
+              >
+                <Lightbulb size={18} /> {theaterMode ? 'Lights On' : 'Lights Out'}
+              </button>
+            </div>
           </div>
 
           <div className="watch-layout-grid">
@@ -542,7 +553,9 @@ export default function MovieDetails() {
                     selected.Type === "series" ? `https://vidsrc.cc/v2/embed/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidsrc.cc/v2/embed/movie/${tmdbIdState || selected.imdbID}`,
                     selected.Type === "series" ? `https://vidsrc.net/embed/tv?tmdb=${tmdbIdState || selected.imdbID}&season=${season}&episode=${episode}` : `https://vidsrc.net/embed/movie?tmdb=${tmdbIdState || selected.imdbID}`,
                     selected.Type === "series" ? `https://vidlink.pro/tv/${tmdbIdState || selected.imdbID}/${season}/${episode}` : `https://vidlink.pro/movie/${tmdbIdState || selected.imdbID}`,
-                    selected.Type === "series" ? `https://multiembed.mov/directstream.php?video_id=${tmdbIdState || selected.imdbID}&tmdb=1&s=${season}&e=${episode}` : `https://multiembed.mov/directstream.php?video_id=${tmdbIdState || selected.imdbID}&tmdb=1`
+                    selected.Type === "series" ? `https://multiembed.mov/directstream.php?video_id=${tmdbIdState || selected.imdbID}&tmdb=1&s=${season}&e=${episode}` : `https://multiembed.mov/directstream.php?video_id=${tmdbIdState || selected.imdbID}&tmdb=1`,
+                    selected.Type === "series" ? `https://player.autoembed.cc/embed/tv/${selected.imdbID}/${season}/${episode}` : `https://player.autoembed.cc/embed/movie/${selected.imdbID}`,
+                    selected.Type === "series" ? `https://player.smashy.stream/tv/${tmdbIdState || selected.imdbID}?s=${season}&e=${episode}` : `https://player.smashy.stream/movie/${tmdbIdState || selected.imdbID}`
                   ][playerIndex]}
                   key={`${selected.imdbID}-${season}-${episode}-${playerIndex}`}
                   title={`${selected.Title} player`}
@@ -776,6 +789,62 @@ export default function MovieDetails() {
         )}
       </AnimatePresence>
 
+      {/* SUBTITLE FIX MODAL */}
+      <AnimatePresence>
+        {showSubtitleModal && (
+          <motion.div 
+            className="theater-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 3000 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              style={{ width: '100%', maxWidth: '500px', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '24px', overflow: 'hidden', position: 'relative', boxShadow: 'var(--shadow-xl)' }}
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+            >
+              <div style={{ padding: '24px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Languages color="var(--accent-fuchsia)" /> Missing or Out-of-Sync Subtitles?
+                </h3>
+                <button onClick={() => setShowSubtitleModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div style={{ padding: '24px' }}>
+                <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '16px' }}>
+                  Since we use external streaming servers, we cannot directly fix their broken or missing subtitles.
+                </p>
+                <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '24px' }}>
+                  However, you can use a powerful browser extension called <strong>Substital</strong>. It lets you inject subtitles into ANY video on this site and fix the sync delay!
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '12px' }}>
+                  <h4 style={{ margin: 0, color: 'white' }}>How to use it:</h4>
+                  <ol style={{ margin: 0, paddingLeft: '20px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <li>Install the Substital extension in your browser.</li>
+                    <li>Play the movie here in CenInfo.</li>
+                    <li>Click the Substital icon in your browser toolbar.</li>
+                    <li>Search for your language (like Arabic) or upload an .srt file.</li>
+                    <li>Use their slider to fix any audio/text sync issues perfectly!</li>
+                  </ol>
+                </div>
+
+                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <a 
+                    href="https://substital.com/" 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="btn-primary" 
+                    style={{ textDecoration: 'none', padding: '12px 24px' }}
+                  >
+                    Get Substital
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* WATCH PARTY INVITE MODAL */}
       <AnimatePresence>
         {showInviteModal && (
@@ -858,6 +927,13 @@ export default function MovieDetails() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ marginBottom: '4px', padding: '12px', background: 'rgba(240,40,122,0.1)', border: '1px solid rgba(240,40,122,0.2)', borderRadius: '8px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <Lightbulb size={24} color="var(--accent-fuchsia)" style={{ flexShrink: 0 }} />
+                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        <strong>Note:</strong> You must have a Torrent Client installed (like <a href="https://www.qbittorrent.org/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-fuchsia)', textDecoration: 'none' }}>qBittorrent</a> or <a href="https://transmissionbt.com/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-fuchsia)', textDecoration: 'none' }}>Transmission</a>) to open these magnet links.
+                      </p>
+                    </div>
+
                     {torrents.map(torrent => (
                       <div key={torrent.hash} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '12px' }}>
                         <div>

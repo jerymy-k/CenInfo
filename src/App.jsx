@@ -22,6 +22,7 @@ import SharedList from "./pages/SharedList";
 import ProtectedRoute from "./components/ProtectedRoute";
 import WatchParty from "./pages/WatchParty";
 import Downloads from "./pages/Downloads";
+import AIChatbot from "./components/AIChatbot";
 
 import "./App.css";
 
@@ -112,6 +113,7 @@ export default function App() {
               <MainContent />
               <ConditionalFooter />
               <AuthModal />
+              <AIChatbot />
             </div>
           </ThemeProvider>
         </SocialProvider>

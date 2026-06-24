@@ -426,10 +426,52 @@ export async function fetchLiveSearch(query) {
 
 export async function fetchMovieTorrents(imdbID) {
   try {
-    const res = await fetch(`https://yts.mx/api/v2/list_movies.json?query_term=${imdbID}`);
+    const res = await fetch(`https://torrentio.strem.fun/stream/movie/${imdbID}.json`);
     const data = await res.json();
-    if (data.status === "ok" && data.data?.movies?.length > 0) {
-      return data.data.movies[0].torrents || [];
+    
+    if (data.streams && data.streams.length > 0) {
+      let torrents = data.streams.map(stream => {
+        const meta = stream.title.split('\n').pop() || "";
+        const seedsMatch = meta.match(/👤 (\d+)/);
+        const sizeMatch = meta.match(/💾 ([^\s]+ [A-Z]+)/);
+        const sourceMatch = meta.match(/⚙️ (.+)/);
+        
+        return {
+          hash: stream.infoHash,
+          quality: stream.name.split('\n')[1] || "Unknown",
+          type: sourceMatch ? sourceMatch[1] : "Torrent",
+          size: sizeMatch ? sizeMatch[1] : "?",
+          seeds: seedsMatch ? parseInt(seedsMatch[1]) : 0
+        };
+      });
+
+      // Sort all by seeders first
+      torrents.sort((a, b) => b.seeds - a.seeds);
+
+      // Group into quality buckets, keeping only top 4 of each
+      const grouped = {};
+      torrents.forEach(t => {
+        const lowerQ = t.quality.toLowerCase();
+        let bucket = "Other";
+        if (lowerQ.includes("4k") || lowerQ.includes("2160p")) bucket = "4K";
+        else if (lowerQ.includes("1080p")) bucket = "1080p";
+        else if (lowerQ.includes("720p")) bucket = "720p";
+        else if (lowerQ.includes("480p")) bucket = "480p";
+        
+        if (!grouped[bucket]) grouped[bucket] = [];
+        if (grouped[bucket].length < 4) {
+          grouped[bucket].push(t);
+        }
+      });
+
+      // Flatten in a user-friendly order: 1080p -> 720p -> 4K -> 480p -> Other
+      return [
+        ...(grouped["1080p"] || []),
+        ...(grouped["720p"] || []),
+        ...(grouped["4K"] || []),
+        ...(grouped["480p"] || []),
+        ...(grouped["Other"] || [])
+      ];
     }
     return [];
   } catch (error) {
