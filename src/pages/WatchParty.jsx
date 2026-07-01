@@ -358,7 +358,7 @@ export default function WatchParty() {
       )}
 
       {/* ========== MAIN CONTENT ========== */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+      <div className="watch-party-main" style={{ display: 'flex', flex: 1, position: 'relative' }}>
 
         {/* --- Video Area --- */}
         <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', background: 'black' }}>
@@ -411,7 +411,7 @@ export default function WatchParty() {
 
         {/* --- Sidebar Chat (hidden in cinema mode) --- */}
         {!isCinemaMode && (
-          <div style={{ width: '350px', background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+          <div className="watch-party-sidebar" style={{ background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <MessageSquare size={18} color="var(--accent-violet)" />
               <span style={{ fontWeight: 'bold', fontSize: '15px' }}>Live Chat</span>

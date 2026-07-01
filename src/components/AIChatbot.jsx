@@ -80,12 +80,11 @@ export default function AIChatbot() {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             onClick={() => setIsOpen(true)}
+            className="ai-chatbot-btn"
             style={{
               position: 'fixed',
-              bottom: '30px',
-              right: '30px',
-              width: '60px',
               height: '60px',
+              width: '60px',
               borderRadius: '30px',
               background: 'linear-gradient(135deg, var(--accent-fuchsia), var(--accent-blue))',
               border: 'none',
@@ -113,11 +112,9 @@ export default function AIChatbot() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
+            className="ai-chatbot-window"
             style={{
               position: 'fixed',
-              bottom: '30px',
-              right: '30px',
-              width: '380px',
               height: '600px',
               maxHeight: '80vh',
               background: 'var(--bg-surface)',

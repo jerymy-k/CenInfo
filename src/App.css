@@ -1642,3 +1642,82 @@
   }
 }
 
+
+/* --- NEW RESPONSIVE CLASSES --- */
+.ai-chatbot-window {
+  width: 380px;
+  right: 30px;
+  bottom: 30px;
+}
+.ai-chatbot-btn {
+  right: 30px;
+  bottom: 30px;
+}
+.watch-party-main {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.watch-party-sidebar {
+  width: 350px;
+  border-left: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+
+@media (max-width: 768px) {
+  .ai-chatbot-window {
+    width: calc(100vw - 32px) !important;
+    right: 16px !important;
+    bottom: 16px !important;
+  }
+  .ai-chatbot-btn {
+    right: 16px !important;
+    bottom: 16px !important;
+  }
+  .watch-party-main {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .watch-party-sidebar {
+    width: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid var(--border-light) !important;
+    height: 400px !important;
+  }
+}
+
+
+/* --- SEARCH MODAL MOBILE --- */
+.search-results-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 400px;
+}
+.search-results-list {
+  flex: 0 0 45%;
+  border-right: 1px solid var(--border-light);
+  overflow-y: auto;
+}
+.search-results-preview {
+  flex: 1;
+  background: rgba(0,0,0,0.3);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 768px) {
+  .search-results-list {
+    flex: 1 !important;
+    border-right: none !important;
+  }
+  .search-results-preview {
+    display: none !important;
+  }
+}
+

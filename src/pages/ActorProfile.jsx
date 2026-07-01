@@ -62,7 +62,7 @@ export default function ActorProfile() {
             style={{ width: '100%', borderRadius: '24px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-light)' }} 
           />
         </div>
-        <div style={{ flex: 1, minWidth: '300px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h1 style={{ fontSize: 'clamp(28px, 6vw, 48px)', marginBottom: '16px' }}>{actor.name}</h1>
           <div style={{ display: 'flex', gap: '20px', marginBottom: '24px', flexWrap: 'wrap' }}>
             {actor.known_for_department && (

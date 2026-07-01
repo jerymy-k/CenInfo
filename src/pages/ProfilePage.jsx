@@ -209,7 +209,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Main Content Area */}
-        <div style={{ flex: 1, minWidth: '300px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           
           {activeTab === 'overview' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -247,7 +247,7 @@ export default function ProfilePage() {
                   <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${watchlists.watching[0].Poster})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(20px) brightness(0.3)', zIndex: 0 }}></div>
                   <div style={{ position: 'relative', zIndex: 1, padding: '30px', display: 'flex', gap: '24px', alignItems: 'center', width: '100%', flexWrap: 'wrap' }}>
                     <img src={watchlists.watching[0].Poster} alt="Poster" style={{ width: '100px', height: '150px', objectFit: 'cover', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }} />
-                    <div style={{ flex: 1, minWidth: '200px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <span className="nav-badge" style={{ background: 'var(--accent-violet)', marginBottom: '12px', display: 'inline-block' }}>Currently Watching</span>
                       <h3 style={{ fontSize: '28px', margin: '0 0 8px 0', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{watchlists.watching[0].Title}</h3>
                       <Link to={`/movie/${watchlists.watching[0].imdbID}`} className="btn-primary" style={{ padding: '8px 20px', fontSize: '14px', marginTop: '12px', display: 'inline-block', textDecoration: 'none' }}>Continue Watching</Link>
