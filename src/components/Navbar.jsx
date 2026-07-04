@@ -354,9 +354,9 @@ export default function Navbar({ onSearch }) {
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: '400px' }}>
+                <div className="search-results-layout">
                   {/* Left Column: Results List */}
-                  <div style={{ flex: '0 0 45%', borderRight: '1px solid var(--border-light)', overflowY: 'auto' }}>
+                  <div className="search-results-list">
                     {isSearching ? (
                       <p style={{ padding: '20px 32px', color: 'var(--text-muted)' }}>Searching...</p>
                     ) : liveResults.length > 0 ? (
@@ -397,7 +397,7 @@ export default function Navbar({ onSearch }) {
                   </div>
                   
                   {/* Right Column: Rich Preview */}
-                  <div style={{ flex: '1', background: 'rgba(0,0,0,0.3)', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                  <div className="search-results-preview">
                     {activePreview ? (
                       <div style={{ position: 'relative', flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
                         {activePreview.Backdrop ? (
